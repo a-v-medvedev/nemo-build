@@ -1,0 +1,3 @@
+[submodule "dbscripts"]
+	path = dbscripts
+	url = git@github.com:a-v-medvedev/dbscripts
