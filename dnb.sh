@@ -16,7 +16,6 @@ function dnb_netcdf-fortran() {
     local V=$(get_field "$2" 2 "=")
     du_github "Unidata" "netcdf-fortran" "v" "$V" "$m"
     local OPTS=""
-    OPTS="$OPTS FC=gfortran"
     OPTS="$OPTS CPPFLAGS=-I$INSTALL_DIR/netcdf-c.bin/include"
 #    OPTS="$OPTS FCFLAGS=-fallow-argument-mismatch""
     local CMDS="export LDFLAGS=\"-L$INSTALL_DIR/netcdf-c.bin/lib -Wl,-rpath,$INSTALL_DIR/netcdf-c.bin/lib\""
@@ -43,12 +42,24 @@ function dnb_nemo() {
     environment_check_specific "$pkg" || fatal "${pkg}: environment check failed"
     local m=$(get_field "$1" 2 "=")
     local V=$(get_field "$2" 2 "=")
+    local WORKLOAD_ARCHIVE=ORCA2_ICE_v4.0.tar
+    local WORKLOAD_MD5="fe6c0c2ae1d4fb42b30578646536615f"
+
     if this_mode_is_set 'd' "$m"; then
         mkdir -p "${pkg}.dwn"
 	cd "${pkg}.dwn"
         svn export https://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$V $pkg
 	cd $pkg
         tar czf "../${pkg}-${V}.tar.gz" $pkg
+	cd $INSTALL_DIR
+	# download from https://zenodo.org/record/2640723#.ZGOnotJByV4
+	cd "${pkg}.dwn"
+	if [ -f "$WORKLOAD_ARCHIVE" ]; then
+	    echo "$WORKLOAD_MD5 $WORKLOAD_ARCHIVE" | md5sum -c --status || rm -f "$WORKLOAD_ARCHIVE"
+	fi
+	if [ ! -f "$WORKLOAD_ARCHIVE" ]; then
+            wget -nv -O "$WORKLOAD_ARCHIVE" "https://zenodo.org/record/2640723/files/$WORKLOAD_ARCHIVE?download=1"
+	fi
 	cd $INSTALL_DIR
     fi
     if this_mode_is_set 'u' "$m"; then
@@ -93,8 +104,15 @@ EOF
 		cd $INSTALL_DIR
 	fi
 	if this_mode_is_set 'i' "$m"; then
-		# download from https://zenodo.org/record/2640723#.ZGOnotJByV4 to $pkg-$V
+		[ -d "$pkg-$V" ] && rm -rf "$pkg-$V"
+		[ -e "$pkg-$V" ] && rm -f "$pkg-$V"
+		mkdir -p "$pkg-$V"
 		# copy binary from $pkg-$V.src/cfgs/ORCA2/EXP00/* to $pkg-$V
+		cp -v $pkg-$V.src/cfgs/ORCA2/EXP00/* "$pkg-$V"
+		# unpack data tar archive
+		cd "$pkg-$V"
+		tar --skip-old-files -xvf "../${pkg}.dwn/$WORKLOAD_ARCHIVE"
+		cd $INSTALL_DIR
         echo;
 	fi
 	i_make_binary_symlink "$pkg" "${V}" "$m"

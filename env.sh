@@ -7,6 +7,8 @@ cat > $script << 'EOM'
 
 module load gcc/7.2.0 intel/2021.4 impi/2018.3 mkl/2021.4 netcdf/4.4.1.1 hdf5/1.8.19 perl/5.26
 
+export FC=ifort
+
 export MAKE_PARALLEL_LEVEL=4
 
 export PSUBMIT_OPTS_NNODES=1
