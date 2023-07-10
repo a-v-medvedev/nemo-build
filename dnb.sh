@@ -47,20 +47,30 @@ function dnb_nemo() {
 
     if this_mode_is_set 'd' "$m"; then
         mkdir -p "${pkg}.dwn"
-	cd "${pkg}.dwn"
-        svn export https://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$V $pkg
-	cd $pkg
-        tar czf "../${pkg}-${V}.tar.gz" $pkg
-	cd $INSTALL_DIR
-	# download from https://zenodo.org/record/2640723#.ZGOnotJByV4
-	cd "${pkg}.dwn"
-	if [ -f "$WORKLOAD_ARCHIVE" ]; then
-	    echo "$WORKLOAD_MD5 $WORKLOAD_ARCHIVE" | md5sum -c --status || rm -f "$WORKLOAD_ARCHIVE"
-	fi
-	if [ ! -f "$WORKLOAD_ARCHIVE" ]; then
-            wget -nv -O "$WORKLOAD_ARCHIVE" "https://zenodo.org/record/2640723/files/$WORKLOAD_ARCHIVE?download=1"
-	fi
-	cd $INSTALL_DIR
+        if [ "$V" == "DE340" ]; then
+            ln -s "$HOME/data/nemo_de340.tgz" "${pkg}.dwn"/"${pkg}-${V}.tar.gz"
+        #elif [ "$V" ~ 4.2 ]; then
+            # go with github
+        else
+        	cd "${pkg}.dwn"
+            svn export https://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$V $pkg
+    	    cd $pkg
+            tar czf "../${pkg}-${V}.tar.gz" $pkg
+    	    cd $INSTALL_DIR
+        fi
+    	# download from https://zenodo.org/record/2640723#.ZGOnotJByV4
+	    cd "${pkg}.dwn"
+    	if [ -f "$WORKLOAD_ARCHIVE" ]; then
+	        echo "$WORKLOAD_MD5 $WORKLOAD_ARCHIVE" | md5sum -c --status || rm -f "$WORKLOAD_ARCHIVE"
+    	fi
+	    if [ ! -f "$WORKLOAD_ARCHIVE" ]; then
+            if [ -f "$HOME/data/$WORKLOAD_ARCHIVE" ]; then  
+                ln -s "$HOME/data/$WORKLOAD_ARCHIVE" .
+            else
+                wget -nv -O "$WORKLOAD_ARCHIVE" "https://zenodo.org/record/2640723/files/$WORKLOAD_ARCHIVE?download=1"
+            fi
+    	fi
+	    cd $INSTALL_DIR
     fi
     if this_mode_is_set 'u' "$m"; then
         local archive="${pkg}.dwn/${pkg}-${V}.tar.gz"
@@ -118,13 +128,31 @@ EOF
 	i_make_binary_symlink "$pkg" "${V}" "$m"
 }
 
-####
-export DNB_NOCUDA=1
+function dnb_sandbox() {
+    mkdir -p sandbox
+    cd sandbox
+    cp ../nemo.bin/* .
+    for i in *.gz; do gunzip -f $i; done
+    mkdir -p lib
+    cp -a ../netcdf-c.bin/lib/* ../netcdf-fortran.bin/lib/* lib
+    cat > psubmit.opt.TEMPLATE <<EOF
+QUEUE=__QUEUE__
+TIME_LIMIT=__TIME_LIMIT__         
+TARGET_BIN="./nemo"
+JOB_NAME="NEMO test job"    
+INIT_COMMANDS=__INIT_COMMANDS__
+INJOB_INIT_COMMANDS=__INJOB_INIT_COMMANDS__
+MPIEXEC=__MPI_SCRIPT__
+BATCH=__BATCH_SCRIPT__  
+EOF
+    template_to_psubmitopts "." ""
+    cd $INSTALL_DIR
+}
 
-PACKAGES="nemo"
-#PACKAGE_DEPS=""
-#PACKAGES="nemo hdf5 netcdf-c netcdf-fortran"
-#PACKAGE_DEPS="nemo:netcdf-fortran netcdf-fortran:netcdf-c,hdf5 netcdf-c:hdf5"
+####
+
+PACKAGES="nemo hdf5 netcdf-c netcdf-fortran"
+PACKAGE_DEPS="nemo:netcdf-fortran netcdf-fortran:netcdf-c,hdf5 netcdf-c:hdf5"
 VERSIONS="nemo:4.0.7 hdf5:1.10.7 netcdf-fortran:4.4.3 netcdf-c:4.4.0"
 TARGET_DIRS="nemo.bin hdf5.bin netcdf-fortran.bin netcdf-c.bin"
 
