@@ -14,9 +14,12 @@ export MAKE_PARALLEL_LEVEL=4
 export PSUBMIT_OPTS_NNODES=1
 export PSUBMIT_OPTS_PPN=48
 export PSUBMIT_OPTS_NGPUS=0
-export PSUBMIT_OPTS_QUEUE_NAME=debug
-export PSUBMIT_OPTS_INIT_COMMANDS='module load gcc/7.2.0 intel/2021.4 impi/2018.3 mkl/2021.4'
-export PSUBMIT_OPTS_INJOB_INIT_COMMANDS='export LD_LIBRARY_PATH=lib:$LD_LIBRARY_PATH'
+export PSUBMIT_OPTS_QUEUE_NAME=
+export PSUBMIT_OPTS_TIME_LIMIT=10
+export PSUBMIT_OPTS_NODETYPE=debug
+export PSUBMIT_OPTS_RESOURCE_HANDLING=qos
+export PSUBMIT_OPTS_INIT_COMMANDS='"module load gcc/7.2.0 intel/2021.4 impi/2018.3 mkl/2021.4"'
+export PSUBMIT_OPTS_INJOB_INIT_COMMANDS='"export LD_LIBRARY_PATH=lib:$LD_LIBRARY_PATH"'
 export PSUBMIT_OPTS_MPI_SCRIPT=impi
 export PSUBMIT_OPTS_BATCH_SCRIPT=slurm
 
@@ -26,6 +29,22 @@ export DNB_NOCUDA=1
 export DNB_NOCMAKE=1
 export DNB_NOCCOMP=1
 export DNB_NOCXXCOMP=1
+
+export NEMO_USE_PREBUILD_PREREQS=TRUE
+export DEFAULT_BUILD_MODE=":ubi"
+
+export PACKAGE_VERSIONS="nemo:DE340"
+export NEMO_CFG="ORCE2"
+export NEMO_SUBCOMPONENTS="OCE ICE"
+export NEMO_KEYS_TO_DELETE="key_top"
+export NEMO_KEYS_TO_ADD="key_asminc key_netcdf4 key_sms"
+
+#export PACKAGE_VERSIONS="nemo:4.0.7"
+#export NEMO_CFG="ORCE2"
+#export NEMO_SUBCOMPONENTS="OCE"
+#export NEMO_KEYS_TO_DELETE="key_top key_si3 key_iomput"
+#export NEMO_KEYS_TO_ADD="key_netcdf4"
+
 EOM
     . $script
     cat $script
@@ -47,34 +66,14 @@ function env_init {
         # put here any specific env. setting before silo build
     ;;
     nemo)
-	export NEMO_CPP="cpp"
-	export NEMO_CC="icc"
+        export NEMO_NETCDF_C_PATH="/apps/NETCDF/4.4.1.1/INTEL/IMPI"
+        export NEMO_NETCDF_FORTRAN_PATH="/apps/NETCDF/4.4.1.1/INTEL/IMPI"
+        export NEMO_CPP="cpp"
+        export NEMO_CC="icc"
         export NEMO_FC="mpiifort"
         export NEMO_FCFLAGS="-r8 -ip -O3 -fp-model strict -extend-source 132 -heap-arrays"
         export NEMO_LDFLAGS="-lstdc++"
-        export NEMO_FPPFLAGS="-P -traditional"
-#%CPP                 cpp
-#%NCDF_INC            -I/apps/NETCDF/4.4.1.1/INTEL/IMPI/include
-#%NCDF_LIB            -L/apps/NETCDF/4.4.1.1/INTEL/IMPI/lib -lnetcdf -lnetcdff
-
-#%XIOS_DIR            /gpfs/scratch/bsc32/bsc32402/a4y2/precisionoptimizationworkflow4nemo/xios_sources/trunk
-#%XIOS_INC            -I%XIOS_DIR/inc
-#%XIOS_LIB            -L%XIOS_DIR/lib -lxios -lstdc++
-
-#%FC                  mpiifort
-#%CC                  icc
-#%CFLAGS              -O3
-#%FCFLAGS             -r8 -ip -O3 -fp-model strict -extend-source 132 -heap-arrays
-#%FFFLAGS             %FCFLAGS
-#%LD                  mpiifort
-#%FPPFLAGS            -P -traditional
-#%LDFLAGS             -lstdc++
-#%AR                  ar
-#%ARFLAGS             -r
-#%MK                  gmake
-#%USER_INC            %NCDF_INC %XIOS_INC  %RPE_INC
-#%USER_LIB            %NCDF_LIB %XIOS_LIB  %RPE_LIB
-        # put here any specific env. setting before scotch build
+        export NEMO_FPPFLAGS="-P -traditional -I/apps/INTEL/2018.3.051/impi/2018.3.222/intel64/include -I/apps/INTEL/2018.3.051/impi/2018.3.222/intel64/include"
     ;;
     esac
     return 0
