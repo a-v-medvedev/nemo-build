@@ -101,8 +101,8 @@ function dnb_nemo() {
 		set +u
         [ -z "$NEMO_CFG" ] && NEMO_CFG="ORCA2"
         [ -z "$NEMO_SUBCOMPONENTS" ] && NEMO_SUBCOMPONENTS="OCE ICE"
-        [ -z "$NEMO_KEYS_TO_DELELE" ] && NEMO_KEYS_TO_DELETE="key_top"
-        [ -z "$NEMO_KEYS_TO_ADD" ] && NEMO_KEYS_TO_DELETE="key_asminc key_netcdf4 key_sms"
+        [ -z "$NEMO_KEYS_TO_DELETE" ] && NEMO_KEYS_TO_DELETE="key_top"
+        [ -z "$NEMO_KEYS_TO_ADD" ] && NEMO_KEYS_TO_ADD="key_asminc key_netcdf4 key_sms"
         if [ ! -z "$NEMO_USE_PREBUILD_PREREQS" ]; then
             [ -z "$NEMO_NETCDF_C_PATH" ] && fatal "direct path to necdf_c library is required"
             [ -z "$NEMO_NETCDF_FORTRAN_PATH" ] && fatal "direct path to necdf_fortran library is required"
@@ -135,7 +135,9 @@ function dnb_nemo() {
 %USER_LIB            %NCDF_LIB
 EOF
 		echo y | ./makenemo -n "$NEMO_CFG" clean_config || true
-		./makenemo -r ORCA2_ICE_PISCES -n "$NEMO_CFG" -d "$NEMO_SUBCOMPONENTS" -m dnb add_key "$NEMO_KEYS_TO_ADD" del_key "$NEMO_KEYS_TO_DELETE" -j $MAKE_PARALLEL_LEVEL
+        set -x
+		./makenemo -r ORCA2_ICE_PISCES -n "$NEMO_CFG" -d "$NEMO_SUBCOMPONENTS" -m dnb add_key "$NEMO_KEYS_TO_ADD" del_key "$NEMO_KEYS_TO_DELETE" -j $MAKE_PARALLEL_LEVEL || fatal "makenemo failed."
+        set +x
 		cd $INSTALL_DIR
 	fi
 	if this_mode_is_set 'i' "$m"; then
