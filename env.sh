@@ -9,7 +9,7 @@ module load gcc/7.2.0 intel/2021.4 impi/2018.3 mkl/2021.4 netcdf/4.4.1.1 hdf5/1.
 
 export FC=ifort
 
-export MAKE_PARALLEL_LEVEL=4
+export MAKE_PARALLEL_LEVEL=48
 
 export PSUBMIT_OPTS_NNODES=1
 export PSUBMIT_OPTS_PPN=48
@@ -33,17 +33,17 @@ export DNB_NOCXXCOMP=1
 export NEMO_USE_PREBUILD_PREREQS=TRUE
 export DEFAULT_BUILD_MODE=":ubi"
 
-#export PACKAGE_VERSIONS="nemo:DE340"
-#export NEMO_CFG="ORCE2"
-#export NEMO_SUBCOMPONENTS="OCE ICE"
-#export NEMO_KEYS_TO_DELETE="key_top"
-#export NEMO_KEYS_TO_ADD="key_asminc key_netcdf4 key_sms"
+export PACKAGE_VERSIONS="nemo:DE340"
+export NEMO_CFG="ORCA2"
+export NEMO_SUBCOMPONENTS="OCE ICE"
+export NEMO_KEYS_TO_DELETE="key_top"
+export NEMO_KEYS_TO_ADD="key_asminc key_netcdf4 key_sms key_xios2"
 
-export PACKAGE_VERSIONS="nemo:4.0.7"
-export NEMO_CFG="ORCE2"
-export NEMO_SUBCOMPONENTS="OCE"
-export NEMO_KEYS_TO_DELETE="key_top key_si3 key_iomput"
-export NEMO_KEYS_TO_ADD="key_netcdf4"
+#export PACKAGE_VERSIONS="nemo:4.0.7"
+#export NEMO_CFG="ORCA2"
+#export NEMO_SUBCOMPONENTS="OCE"
+#export NEMO_KEYS_TO_DELETE="key_top key_si3 key_iomput"
+#export NEMO_KEYS_TO_ADD="key_netcdf4"
 
 EOM
     . $script
@@ -62,12 +62,16 @@ function env_init {
     netcdf-fortran)
         # put here any specific env. setting before yaml-cpp build
     ;;
-    XIOS)
-        # put here any specific env. setting before silo build
+    xios)
+        export XIOS_HDF5_PATH="/apps/HDF5/1.8.19/INTEL/IMPI"
+        export XIOS_NETCDF_C_PATH="/apps/NETCDF/4.4.1.1/INTEL/IMPI"
+        export XIOS_NETCDF_FORTRAN_PATH="/apps/NETCDF/4.4.1.1/INTEL/IMPI"
     ;;
     nemo)
+        export NEMO_HDF5_PATH="/apps/HDF5/1.8.19/INTEL/IMPI"
         export NEMO_NETCDF_C_PATH="/apps/NETCDF/4.4.1.1/INTEL/IMPI"
         export NEMO_NETCDF_FORTRAN_PATH="/apps/NETCDF/4.4.1.1/INTEL/IMPI"
+        export NEMO_XIOS_PATH="$INSTALL_DIR/xios.bin"
         export NEMO_CPP="cpp"
         export NEMO_CC="icc"
         export NEMO_FC="mpiifort"

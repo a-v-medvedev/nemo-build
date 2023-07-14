@@ -47,13 +47,122 @@ function dnb_netcdf-c() {
 
 }
 
+function dnb_xios() {
+    local pkg="xios"
+    environment_check_specific "$pkg" || fatal "${pkg}: environment check failed"
+    local m=$(get_field "$1" 2 "=")
+    local V=$(get_field "$2" 2 "=")
+    
+    if this_mode_is_set 'd' "$m"; then
+        mkdir -p "${pkg}.dwn"
+        cd "${pkg}.dwn"
+        [ -d ${pkg}-${V} ] && rm -rf ${pkg}-${V}
+        svn export https://forge.ipsl.jussieu.fr/ioserver/svn/XIOS/branchs/${pkg}-${V}
+        tar czf "${pkg}-${V}.tar.gz" ${pkg}-${V}
+        cd $INSTALL_DIR
+    fi
+
+    if this_mode_is_set 'u' "$m"; then
+        local archive="${pkg}.dwn/${pkg}-${V}.tar.gz"
+        [ -e "$archive" ] || fatal "${pkg}: no downloaded archive file: $archive"
+        local DIR=$(tar tzf "$archive" | head -n1 | sed s!/!!)
+        [ -e "$DIR"} ] && rm -rf "$DIR"
+        tar zxf "$archive"
+        [ -d "$DIR" ] || fatal "${pkg}: error handling directory name in downloaded archive"
+        [ -e ${pkg}-${V}.src ] && rm -rf ${pkg}-${V}.src
+        mv ${DIR} ${pkg}-${V}.src
+    fi
+
+    if this_mode_is_set 'b' "$m"; then
+        set +u
+        if [ ! -z "$XIOS_USE_PREBUILD_PREREQS" ]; then
+            [ -z "$XIOS_HDF5_PATH" ] && fatal "direct path to hdf5 library is required"
+            [ -z "$XIOS_NETCDF_C_PATH" ] && fatal "direct path to necdf_c library is required"
+            [ -z "$XIOS_NETCDF_FORTRAN_PATH" ] && fatal "direct path to necdf_fortran library is required"
+        fi
+        [ -z "$XIOS_HDF5_PATH" ] && XIOS_HDF5_PATH="$INSTALL_DIR/hdf5.bin"
+        [ -z "$XIOS_NETCDF_C_PATH" ] && XIOS_NETCDF_C_PATH="$INSTALL_DIR/netcdf-c.bin"
+        [ -z "$XIOS_NETCDF_FORTRAN_PATH" ] && XIOS_NETCDF_FORTRAN_PATH="$INSTALL_DIR/netcdf-fortran.bin"
+        set -u
+
+		cd ${pkg}-${V}.src
+        cat > arch/arch-dnb.env <<EOF
+#env
+module purge
+module load intel/2021.4 impi/2018.3 mkl/2021.4 netcdf/4.4.1.1 hdf5/1.8.19 perl/5.26
+export HDF5_DIR=$XIOS_HDF5_PATH
+export NETCDF_DIR=$XIOS_NETCDF_C_PATH
+export PNETCDF_DIR=$XIOS_NETCDF_C_PATH
+EOF
+
+        cat > arch/arch-dnb.fcm <<EOF
+#fcm
+%CCOMPILER      mpicc
+%FCOMPILER      mpif90
+%LINKER         mpif90 -nofor-main
+
+%BASE_CFLAGS
+%PROD_CFLAGS    -O3 -D BOOST_DISABLE_ASSERTS
+%DEV_CFLAGS     -g -traceback
+%DEBUG_CFLAGS   -DBZ_DEBUG -g -traceback -fno-inline
+
+%BASE_FFLAGS    -D__NONE__
+%PROD_FFLAGS    -O3
+%DEV_FFLAGS     -g -O2 -traceback
+%DEBUG_FFLAGS   -g -traceback
+
+%BASE_INC       -D__NONE__
+%BASE_LD        -lstdc++
+
+%CPP            mpicc -EP
+%FPP            cpp -P
+%MAKE           gmake
+EOF
+
+        cat > arch/arch-dnb.path <<EOF
+#path
+NETCDF_INCDIR="-I${XIOS_NETCDF_C_PATH}/include -I${XIOS_NETCDF_FORTRAN_PATH}/include"
+NETCDF_LIBDIR="-L${XIOS_NETCDF_FORTRAN_PATH}/lib -L${XIOS_NETCDF_C_PATH}/lib"
+NETCDF_LIB="-L${XIOS_NETCDF_FORTRAN_PATH}/lib -lnetcdff -L${XIOS_NETCDF_C_PATH}/lib -lnetcdf"
+
+HDF5_INCDIR="-I${XIOS_HDF5_PATH}/include"
+HDF5_LIBDIR="-L${XIOS_HDF5_PATH}/lib"
+HDF5_LIB="-L${XIOS_HDF5_PATH}/lib -lhdf5_hl -L${XIOS_HDF5_PATH}/lib -lhdf5"
+
+OASIS_INCDIR=""
+OASIS_LIBDIR=""
+OASIS_LIB=""
+EOF
+        ./make_xios --prod --arch dnb --job $MAKE_PARALLEL_LEVEL || fatal "make_xios failed."
+        cd $INSTALL_DIR
+    fi
+    if this_mode_is_set 'i' "$m"; then
+		[ -d "$pkg-$V" ] && rm -rf "$pkg-$V"
+		[ -e "$pkg-$V" ] && rm -f "$pkg-$V"
+		mkdir -p "$pkg-$V"
+		mkdir -p "$pkg-$V/lib"
+		mkdir -p "$pkg-$V/inc"
+        cp ${pkg}-${V}.src/bin/* ${pkg}-${V}/lib
+        cp ${pkg}-${V}.src/lib/* ${pkg}-${V}/lib
+        cp ${pkg}-${V}.src/inc/* ${pkg}-${V}/inc
+    fi
+	i_make_binary_symlink "$pkg" "${V}" "$m"
+}
+
 function dnb_nemo() {
     local pkg="nemo"
     environment_check_specific "$pkg" || fatal "${pkg}: environment check failed"
     local m=$(get_field "$1" 2 "=")
     local V=$(get_field "$2" 2 "=")
-    local WORKLOAD_ARCHIVE="ORCA2_ICE_v4.0.tar"
-    local WORKLOAD_MD5="fe6c0c2ae1d4fb42b30578646536615f"
+    local WORKLOAD_ARCHIVE=""
+    local WORKLOAD_MD5=""
+    if [ "$V" == "DE340" ]; then
+        WORKLOAD_ARCHIVE="eORCA1_OCE_ICE_DE340.tar"
+        WORKLOAD_MD5="198b7349e327a5a96139dd28079d57aa"
+    else
+        WORKLOAD_ARCHIVE="ORCA2_ICE_v4.0.tar"
+        WORKLOAD_MD5="fe6c0c2ae1d4fb42b30578646536615f"
+    fi
 
     mkdatalink "$INSTALL_DIR" "$WORKLOAD_ARCHIVE"
     mkdatalink "$INSTALL_DIR" "nemo_de340.tgz"
@@ -69,7 +178,7 @@ function dnb_nemo() {
         	cd "${pkg}.dwn"
             svn export https://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$V $pkg
     	    cd $pkg
-            tar czf "../${pkg}-${V}.tar.gz" $pkg
+            tar czf "../${pkg}-${V}.tar.gz" .
     	    cd $INSTALL_DIR
         fi
     	# download from https://zenodo.org/record/2640723#.ZGOnotJByV4
@@ -120,23 +229,25 @@ function dnb_nemo() {
 		cat > arch/arch-dnb.fcm <<EOF
 %NCDF_INC            -I$NEMO_NETCDF_FORTRAN_PATH/include
 %NCDF_LIB            -L$NEMO_NETCDF_FORTRAN_PATH/lib -L$NEMO_NETCDF_C_PATH/lib -lnetcdf -lnetcdff
+%XIOS_INC            -I$NEMO_XIOS_PATH/inc
+%XIOS_LIB            -L$NEMO_XIOS_PATH/lib -lxios -lstdc++
 %CPP                 $NEMO_CPP
 %CC                  $NEMO_CC
 %FC                  $NEMO_FC
 %FCFLAGS             $NEMO_FCFLAGS
 %FFLAGS              %FCFLAGS
 %LD                  %FC
-%LDFLAGS	     $NEMO_LDFLAGS
+%LDFLAGS	         $NEMO_LDFLAGS
 %FPPFLAGS            $NEMO_FPPFLAGS
 %AR                  ar
 %ARFLAGS             rs
 %MK                  gmake
-%USER_INC            %NCDF_INC
-%USER_LIB            %NCDF_LIB
+%USER_INC            %NCDF_INC %XIOS_INC
+%USER_LIB            %NCDF_LIB %XIOS_LIB
 EOF
 		echo y | ./makenemo -n "$NEMO_CFG" clean_config || true
         set -x
-		./makenemo -r ORCA2_ICE_PISCES -n "$NEMO_CFG" -d "$NEMO_SUBCOMPONENTS" -m dnb add_key "$NEMO_KEYS_TO_ADD" del_key "$NEMO_KEYS_TO_DELETE" -j $MAKE_PARALLEL_LEVEL || fatal "makenemo failed."
+		./makenemo -j $MAKE_PARALLEL_LEVEL -r ORCA2_ICE_PISCES -n "$NEMO_CFG" -d "$NEMO_SUBCOMPONENTS" -m dnb add_key "$NEMO_KEYS_TO_ADD" del_key "$NEMO_KEYS_TO_DELETE" || fatal "makenemo failed."
         set +x
 		cd $INSTALL_DIR
 	fi
@@ -144,7 +255,11 @@ EOF
 		[ -d "$pkg-$V" ] && rm -rf "$pkg-$V"
 		[ -e "$pkg-$V" ] && rm -f "$pkg-$V"
 		mkdir -p "$pkg-$V"
-		cp -v $pkg-$V.src/cfgs/$NEMO_CFG/EXP00/* "$pkg-$V"
+        if [ "$V" == "DE340" ]; then
+    		cp -v $pkg-$V.src/cfgs/$NEMO_CFG/EXP00/nemo "$pkg-$V"
+        else
+    		cp -v $pkg-$V.src/cfgs/$NEMO_CFG/EXP00/* "$pkg-$V"
+        fi
 		cd "$pkg-$V"
 		tar --skip-old-files -xvf "../${pkg}.dwn/$WORKLOAD_ARCHIVE"
 		cd $INSTALL_DIR
@@ -156,7 +271,7 @@ EOF
 function dnb_sandbox() {
     mkdir -p sandbox
     cd sandbox
-    cp ../nemo.bin/* .
+    cp -r ../nemo.bin/* .
     for i in *.gz; do gunzip -f $i; done
     mkdir -p lib
     [ -e "../netcdf-c.bin/lib" ] && cp -a ../netcdf-c.bin/lib/* lib
@@ -187,14 +302,15 @@ echo "Download and build started at timestamp: $started."
 environment_check_main || fatal "Environment is not supported, exiting"
 
 if [ -z "$NEMO_USE_PREBUILD_PREREQS" ]; then
-    PACKAGES="nemo hdf5 netcdf-c netcdf-fortran"
-    #PACKAGE_DEPS="nemo:netcdf-fortran netcdf-fortran:netcdf-c,hdf5 netcdf-c:hdf5"
-    VERSIONS="nemo:4.0.7 hdf5:1.10.7 netcdf-fortran:4.4.3 netcdf-c:4.4.0"
-    TARGET_DIRS="nemo.bin hdf5.bin netcdf-fortran.bin netcdf-c.bin"
+    PACKAGES="nemo hdf5 netcdf-c netcdf-fortran xios"
+    PACKAGE_DEPS="nemo:netcdf-fortran netcdf-fortran:netcdf-c,hdf5 netcdf-c:hdf5"
+    VERSIONS="nemo:4.0.7 hdf5:1.10.7 netcdf-fortran:4.4.3 netcdf-c:4.4.0 xios:2.5"
+    TARGET_DIRS="nemo.bin hdf5.bin netcdf-fortran.bin netcdf-c.bin xios.bin"
 else
-    PACKAGES="nemo"
-    VERSIONS="nemo:4.0.7"
-    TARGET_DIRS="nemo.bin"
+    PACKAGES="xios nemo"
+    PACKAGE_DEPS="nemo:xios"
+    VERSIONS="xios:2.5 nemo:4.0.7"
+    TARGET_DIRS="xios.bin nemo.bin"
 fi
 
 dubi_main "$*"
