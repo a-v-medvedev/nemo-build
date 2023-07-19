@@ -42,6 +42,7 @@ function dnb_netcdf-c() {
     local OPTS=""
     OPTS="$OPTS CPPFLAGS=-I$INSTALL_DIR/hdf5.bin/include"
     OPTS="$OPTS LDFLAGS=-L$INSTALL_DIR/hdf5.bin/lib"
+    OPTS="$OPTS --enable-parallel4"
     bi_autoconf_make "$pkg" "$V" "" "$OPTS" "$m"
     i_make_binary_symlink "$pkg" "${V}" "$m"
 
@@ -83,13 +84,16 @@ function dnb_xios() {
         [ -z "$XIOS_HDF5_PATH" ] && XIOS_HDF5_PATH="$INSTALL_DIR/hdf5.bin"
         [ -z "$XIOS_NETCDF_C_PATH" ] && XIOS_NETCDF_C_PATH="$INSTALL_DIR/netcdf-c.bin"
         [ -z "$XIOS_NETCDF_FORTRAN_PATH" ] && XIOS_NETCDF_FORTRAN_PATH="$INSTALL_DIR/netcdf-fortran.bin"
+	[ -z "$XIOS_CCOMPILER" ] && XIOS_CCOMPILER="mpicc"	
+	[ -z "$XIOS_FCOMPILER" ] && XIOS_FCOMPILER="mpif90"
+	[ -z "$XIOS_LINKER" ] && XIOS_LINKER="mpif90 -nofor-main"
+	[ -z "$XIOS_CFLAGS" ] && XIOS_CFLAGS="-std=c++03 -O3 -D BOOST_DISABLE_ASSERTS"
+	[ -z "$XIOS_CPP" ] && XIOS_CPP="mpicc -EP"
+	[ -z "$XIOS_FPP" ] && XIOS_FPP="cpp -P"
         set -u
-
-		cd ${pkg}-${V}.src
+	cd ${pkg}-${V}.src
         cat > arch/arch-dnb.env <<EOF
 #env
-module purge
-module load intel/2021.4 impi/2018.3 mkl/2021.4 netcdf/4.4.1.1 hdf5/1.8.19 perl/5.26
 export HDF5_DIR=$XIOS_HDF5_PATH
 export NETCDF_DIR=$XIOS_NETCDF_C_PATH
 export PNETCDF_DIR=$XIOS_NETCDF_C_PATH
@@ -97,25 +101,25 @@ EOF
 
         cat > arch/arch-dnb.fcm <<EOF
 #fcm
-%CCOMPILER      mpicc
-%FCOMPILER      mpif90
-%LINKER         mpif90 -nofor-main
+%CCOMPILER      $XIOS_CCOMPILER
+%FCOMPILER      $XIOS_FCOMPILER
+%LINKER         $XIOS_LINKER
 
-%BASE_CFLAGS
-%PROD_CFLAGS    -O3 -D BOOST_DISABLE_ASSERTS
+%BASE_CFLAGS    
+%PROD_CFLAGS    $XIOS_CFLAGS
 %DEV_CFLAGS     -g -traceback
 %DEBUG_CFLAGS   -DBZ_DEBUG -g -traceback -fno-inline
 
 %BASE_FFLAGS    -D__NONE__
-%PROD_FFLAGS    -O3
+%PROD_FFLAGS    -O3 
 %DEV_FFLAGS     -g -O2 -traceback
 %DEBUG_FFLAGS   -g -traceback
 
 %BASE_INC       -D__NONE__
 %BASE_LD        -lstdc++
 
-%CPP            mpicc -EP
-%FPP            cpp -P
+%CPP            $XIOS_CPP
+%FPP            $XIOS_FPP
 %MAKE           gmake
 EOF
 
@@ -133,7 +137,8 @@ OASIS_INCDIR=""
 OASIS_LIBDIR=""
 OASIS_LIB=""
 EOF
-        ./make_xios --prod --arch dnb --job $MAKE_PARALLEL_LEVEL || fatal "make_xios failed."
+        ./make_xios --netcdf_lib netcdf4_seq --prod --arch dnb --job $XIOS_MAKE_PARALLEL_LEVEL || fatal "make_xios failed."
+        #./make_xios --prod --arch dnb --job $MAKE_PARALLEL_LEVEL || fatal "make_xios failed."
         cd $INSTALL_DIR
     fi
     if this_mode_is_set 'i' "$m"; then

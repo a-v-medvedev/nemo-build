@@ -66,6 +66,13 @@ function env_init {
         export XIOS_HDF5_PATH="/apps/HDF5/1.8.19/INTEL/IMPI"
         export XIOS_NETCDF_C_PATH="/apps/NETCDF/4.4.1.1/INTEL/IMPI"
         export XIOS_NETCDF_FORTRAN_PATH="/apps/NETCDF/4.4.1.1/INTEL/IMPI"
+	export XIOS_MAKE_PARALLEL_LEVEL="$MAKE_PARALLEL_LEVEL"
+        export XIOS_CCOMPILER="mpicc"
+        export XIOS_FCOMPILER="mpif90"
+        export XIOS_LINKER="mpif90 -nofor-main"
+        export XIOS_CFLAGS="-std=c++03 -O3 -D BOOST_DISABLE_ASSERTS"
+        export XIOS_CPP="mpicc -EP"
+        export XIOS_FPP="cpp -P"
     ;;
     nemo)
         export NEMO_HDF5_PATH="/apps/HDF5/1.8.19/INTEL/IMPI"
