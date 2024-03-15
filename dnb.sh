@@ -37,6 +37,7 @@ MPIEXEC=__MPI_SCRIPT__
 BATCH=__BATCH_SCRIPT__  
 EOF
     template_to_psubmitopts "." ""
+    sed -i 's/nn_itend[ ]*=.*/nn_itend=32/' namelist_cfg
     cd $INSTALL_DIR
 }
 
