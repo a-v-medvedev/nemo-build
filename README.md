@@ -1,6 +1,6 @@
 # nemo-build
 
-`nemo-build` is a set of scripts based on the `dbscripts` project (it is a submodule for this project) to build NEMO ocean global circulation model code.
+`nemo-build` is a set of scripts based on the `dbscripts` project (it is a submodule for this project) to build NEMO ocean global circulation model code. `dbscripts` is located here: https://github.com/a-v-medvedev/dbscripts.
 
 ## Cloning
 
@@ -54,6 +54,8 @@ One can also rebuild `NEMO` code later using this command:
 ```
 
 The later procedure will rebuild nemo from source code keeping possible source code changes, whereas `./dnb.sh nemo:ubi` wipes the changes and rebuilds the `NEMO` source code from scratch unpacking the downloaded source code archive.
+
+More info on the `dnb.sh` contents and options can be found in the `dbscripts` README (https://github.com/a-v-medvedev/dbscripts).
 
 
 ## Running the result
