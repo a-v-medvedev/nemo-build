@@ -1,0 +1,95 @@
+---
+environment:
+  - module load LUMI/23.03 partition/G PrgEnv-cray cpe/23.09 craype-x86-trento craype-accel-amd-gfx90a rocm/5.2.3
+  - module load Subversion/1.14.2
+  - export FC=ftn
+  - export NEMO_SCRIPTS_FOLDER="lumi-g"
+  - export NEMO_AVAILABLE_WORKLOADS="eORCA2-generic"
+  - export NEMO_USE_PREBUILT_HDF5=FALSE
+  - export NEMO_USE_PREBUILT_NETCDF_C=FALSE
+  - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=FALSE
+  - export NEMO_USE_PREBUILT_XIOS=FALSE
+settings:
+  parallel_level: 16
+  default_mode: ":ubi"
+psubmit:
+  nnodes: 1
+  ppn: 8
+  nth: 7
+  ngpus: 8
+  queue_name: "dev-g"
+  account: XXXXXX
+  time_limit: 10
+  init_commands: "module load PrgEnv-cray cpe/23.09 craype-x86-trento craype-accel-amd-gfx90a rocm cray-fftw/3.3.10.1 cray-hdf5-parallel/1.12.1.5"
+  injob_init_commands: "export LD_LIBRARY_PATH=lib:$LD_LIBRARY_PATH"
+  mpi_script: cray-srun
+  batch_script: slurm
+per-package:
+  nemo:
+    - |
+    set +u
+    if true; then
+        # Switch on a hack that tweaks makenemo to use an alternative makefile internally
+        # NOTE: this is necessary because fcm-based makenemo can't do parallel builds on LUMI
+        export NEMO_USE_MAKE=1
+        export NEMO_MAKE_PARALLEL_LEVEL=$MAKE_PARALLEL_LEVEL
+    else
+        export NEMO_MAKE_PARALLEL_LEVEL=1
+    fi
+
+    export NEMO_CPP="cpp"
+    export NEMO_CC="gcc"
+    export NEMO_FC="$FC"
+    if is_set_to_true NEMO_WITH_REPRODUCIBLE; then
+        # Reproducible:
+        export NEMO_FCFLAGS="-O1 -hipa3"
+        # NOTE: we set number of OpenMP threads to 1 since with larger number of threads we have crashes
+        # with this compiler flags set. The reason is unknown. 
+        export PSUBMIT_OPTS_NTH=1
+    else
+        # Optimized:
+        export NEMO_FCFLAGS="-O2"
+    fi
+    if is_set_to_true NEMO_WITH_GPU; then
+        NEMO_FCFLAGS="$NEMO_FCFLAGS -fopenmp -hacc"
+    else
+        NEMO_FCFLAGS="$NEMO_FCFLAGS -fopenmp"
+    fi
+    export NEMO_LDFLAGS="-fopenmp -lstdc++"
+    export NEMO_FPPFLAGS="-P -traditional -I/opt/cray/pe/mpich/8.1.27/ofi/cray/14.0/include"
+    export FCGENERAL="-M878 -Jmod -Qmod -hlist=aimd -hmsgs"
+
+    # GPU related stuff
+    if is_set_to_true NEMO_WITH_GPU; then
+        if is_set_to_true NEMO_WITH_FAKE_GPU; then
+            NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_fake_gpu"
+        fi
+        NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_gpu"
+        NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_amd_gpu"
+        if is_set_to_true NEMO_WITH_PROFILING; then
+            export NEMO_LDFLAGS="$NEMO_LDFLAGS -lroctx64"
+            NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_prof_gpu"
+        fi
+    fi
+    set -u
+
+  xios:
+    - |
+    # NOTE: we can't go with parallel make on LUMI due to some fcm issue
+    export XIOS_MAKE_PARALLEL_LEVEL="1"
+    export XIOS_CCOMPILER="mpicc"
+    export XIOS_FCOMPILER="mpif90"
+    export XIOS_LINKER="mpif90"
+    export XIOS_CFLAGS="-std=c++03 -O3 -D BOOST_DISABLE_ASSERTS"
+    export XIOS_CPP="mpicc -EP"
+    export XIOS_FPP="cpp -P"
+
+  netcdf-c:
+    - |
+    # put here any specific env. setting before netcdf-c build
+
+  netcdf-fortran:
+    - |
+    # put here any specific env. setting before netcdf-fortran build
+
+...

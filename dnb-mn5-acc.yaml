@@ -1,0 +1,103 @@
+--
+checks: [ "cuda" ]
+environment:
+  - module load nvidia-hpc-sdk/24.3 hdf5/1.14.1-2-nvidia-nvhpcx cmake
+  - export FC=mpifort
+  - export CXX=g++
+  - export CC=gcc
+  - export NEMO_SCRIPTS_FOLDER="mn5-acc"
+  - export NEMO_AVAILABLE_WORKLOADS="eORCA2-generic"
+  - export NEMO_USE_PREBUILT_HDF5=FALSE
+  - export NEMO_USE_PREBUILT_NETCDF_C=FALSE
+  - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=FALSE
+  - export NEMO_USE_PREBUILT_XIOS=FALSE
+settings:
+  parallel_level: 16
+  default_mode: ":bi"
+psubmit:
+  nnodes: 1
+  ppn: 8
+  nth: 10
+  ngpus: 4
+  queue_name: ""
+  account: XXXXXX
+  time_limit: 10
+  nodetype: XXXXXX
+  resource_handling: qos
+  generic_resources: gpu:4
+  init_commands: "module load nvidia-hpc-sdk/24.3 hdf5/1.14.1-2-nvidia-nvhpcx"
+  injob_init_commands: "export LD_LIBRARY_PATH=lib:$LD_LIBRARY_PATH"
+  mpi_script: ompi4
+  batch_script: slurm
+per-package:
+  nemo:
+    - |
+      # A hack to overcome makefile issue
+      oldpwd=$PWD
+      srcdir=$DNB_INSTALL_DIR/.nemo-make-hack
+      mkdir -p $srcdir
+      cd $srcdir
+      touch mpif-config.h.idone mpif-constants.h.idone mpif-externals.h.idone mpif-handles.h.idone mpif-io-constants.h.idone mpif-io-handles.h.idone mpif-sentinels.h.idone mpif-sizeof.h.idone
+      touch mpif-config.h mpif-constants.h mpif-externals.h mpif-handles.h mpif-io-constants.h mpif-io-handles.h mpif-sentinels.h mpif-sizeof.h
+      export VPATH=$srcdir
+      cd $oldpwd
+
+      set +u
+      if true; then
+          # Switch on a hack that tweaks makenemo to use an alternative makefile internally
+          # NOTE: this is necessary because fcm-based makenemo can't do parallel builds on LUMI
+          export NEMO_USE_MAKE=1
+          export NEMO_MAKE_PARALLEL_LEVEL=$MAKE_PARALLEL_LEVEL
+      else
+          export NEMO_MAKE_PARALLEL_LEVEL=1
+      fi
+
+      export NEMO_CPP="cpp"
+      export NEMO_CC="gcc"
+      export NEMO_FC="$FC"
+      if is_set_to_true NEMO_WITH_REPRODUCIBLE; then
+          export NEMO_FCFLAGS="-O1 -i4 -r8 -fopenmp -Kieee -nofma -Mnovect"
+      else
+          export NEMO_FCFLAGS="-O3 -i4 -r8 -fopenmp -tp=native"
+      fi
+      export NEMO_LDFLAGS="-lstdc++ -fopenmp"
+      # Note: to get the MPI includes path, run mpicc -showme
+      export NEMO_FPPFLAGS="-P -traditional -I/gpfs/apps/MN5/ACC/NVIDIA-HPC-SDK/24.3/Linux_x86_64/24.3/comm_libs/12.3/hpcx/hpcx-2.17.1/ompi/include"
+      # GPU related stuff
+      if is_set_to_true NEMO_WITH_GPU; then
+          if is_set_to_true NEMO_WITH_FAKE_GPU; then
+              NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_fake_gpu"
+          fi
+          export NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_gpu"
+          export NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_nvidia_gpu"
+          export NEMO_FCFLAGS="$NEMO_FCFLAGS -acc=gpu -mp=gpu -Minfo=mp,accel -gpu=cc90"
+          export NEMO_LDFLAGS="$NEMO_LDFLAGS -acc=gpu -mp=gpu -Minfo=mp,accel -gpu=cc90 -L$DNB_CUDA_EXT_PATH -lcudart"
+          if is_set_to_true NEMO_WITH_PROFILING; then
+              export NEMO_LDFLAGS="$NEMO_LDFLAGS -lnvToolsExt"
+              NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_prof_gpu"
+          fi
+      else
+          export NEMO_FCFLAGS="$NEMO_FCFLAGS -mp=multicore"
+          export NEMO_LDFLAGS="$NEMO_LDFLAGS -mp=multicore"
+      fi
+
+  xios:
+    - |
+      export XIOS_MAKE_PARALLEL_LEVEL="$MAKE_PARALLEL_LEVEL"
+      export XIOS_CCOMPILER="mpicxx"
+      export XIOS_FCOMPILER="mpif90"
+      export XIOS_LINKER="mpif90"
+      export XIOS_CFLAGS="-std=c++03 -O1 -D BOOST_DISABLE_ASSERTS"
+      export XIOS_CPP="mpicc -EP"
+      export XIOS_FPP="cpp -P"
+
+  netcdf-c:
+    - |
+      # put here any specific env. setting before netcdf-c build 
+
+  netcdf-fortran:
+    - |
+      # put here any specific env. setting before netcdf-fortran build
+      #
+...
+

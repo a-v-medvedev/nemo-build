@@ -1,74 +1,43 @@
 #!/bin/bash
 
-BSCRIPTSDIR=./dbscripts
+DNB_DBSCRIPTSDIR=./dbscripts
+DNB_YAML_CONFIG="dnb.yaml"
 
-which module >& /dev/null || [ `type -t module`"" == 'function' ] || source $BSCRIPTSDIR/module.inc
-[ -f ./env.sh ] && source ./env.sh || { echo "FATAL: no env.sh file found"; exit 1; }
-
-source $BSCRIPTSDIR/base.inc
-source $BSCRIPTSDIR/funcs.inc
-source $BSCRIPTSDIR/compchk.inc
-source $BSCRIPTSDIR/envchk.inc
-source $BSCRIPTSDIR/db.inc
-source $BSCRIPTSDIR/apps.inc
-source $BSCRIPTSDIR/apps-nemo.inc
+source $DNB_DBSCRIPTSDIR/includes.inc
+source $DNB_DBSCRIPTSDIR/apps-nemo.inc
 
 function dnb_sandbox() {
     mkdir -p sandbox
     cd sandbox
     cp -r ../nemo.bin/* .
-    for i in *.gz; do gunzip -f $i; done
+
+    for wld in $NEMO_AVAILABLE_WORKLOADS; do
+        case "$wld" in
+        eORCA2-generic)
+    	    for i in *.gz; do gunzip -f $i; done
+            ;;
+        *) fatal "Unknown workload name in NEMO_AVAILABLE_WORKLOADS"
+            ;;
+	esac
+    done
+
     mkdir -p lib
     [ -e "../netcdf-c.bin/lib" ] && cp -a ../netcdf-c.bin/lib/* lib
     [ -e "../netcdf-fortran.bin/lib" ] && cp -a ../netcdf-fortran.bin/lib/* lib
-    cat > psubmit.opt.TEMPLATE <<EOF
-QUEUE=__QUEUE__
-NODETYPE=__NODETYPE__
-RESOURCE_HANDLING=__RESOURCE_HANDLING__
-ACCOUNT=__ACCOUNT__
-PPN=__PPN__
-NTH=__NTH__
-TIME_LIMIT=__TIME_LIMIT__         
-TARGET_BIN="./nemo"
-JOB_NAME="NEMO_test_job"    
-INIT_COMMANDS=__INIT_COMMANDS__
-INJOB_INIT_COMMANDS=__INJOB_INIT_COMMANDS__
-MPIEXEC=__MPI_SCRIPT__
-BATCH=__BATCH_SCRIPT__  
-EOF
-    template_to_psubmitopts "." ""
+    [ -e "../scripts/nemo-postproc.sh" ] && cp -a ../scripts/nemo-postproc.sh .
+    [ -e "../scripts/nemo-preproc.sh" ] && cp -a ../scripts/nemo-preproc.sh .
+    [ -e "../scripts/compare.sh" ] && cp -a ../scripts/compare.sh .
+    [ -e "../scripts/cmp.sh" ] && cp -a ../scripts/cmp.sh .
+    [ -e "../scripts/scalability_table.sh" ] && ln -sf ../scripts/scalability_table.sh .
+    [ -e "../scripts/scalability_table_to_markdown.awk" ] && ln -sf ../scripts/scalability_table_to_markdown.awk .
+    [ -e "../scripts/scalability_table.sh" ] && ln -sf scripts/scalability_table.sh ..
+    [ -z "$NEMO_SCRIPTS_FOLDER" ] && fatal "NEMO_SCRIPTS_FOLDER is not set"
+    [ -e "../scripts/$NEMO_SCRIPTS_FOLDER/interactive-run.sh" ] && cp -a ../scripts/$NEMO_SCRIPTS_FOLDER/interactive-run.sh .
+    [ -e "../scripts/$NEMO_SCRIPTS_FOLDER/nemo-runner.sh" ] && cp -a ../scripts/$NEMO_SCRIPTS_FOLDER/nemo-runner.sh .
+    [ -e "../scripts/$NEMO_SCRIPTS_FOLDER/profiling-wrapper.sh" ] && cp -a ../scripts/$NEMO_SCRIPTS_FOLDER/profiling-wrapper.sh .
+    generate_psubmit_opt "."
     sed -i 's/nn_itend[ ]*=.*/nn_itend=32/' namelist_cfg
-    cd $INSTALL_DIR
+    cd $DNB_INSTALL_DIR
 }
 
-####
-
-# Avoid versions checks to make things faster
-export DNB_NOCUDA=1
-export DNB_NOCMAKE=1
-export DNB_NOCCOMP=1
-export DNB_NOCXXCOMP=1
-
-started=$(date "+%s")
-echo "Download and build started at timestamp: $started."
-environment_check_main || fatal "Environment is not supported, exiting"
-
-set +u
-PACKAGES=nemo
-is_set_to_true NEMO_USE_PREBUILT_XIOS || PACKAGES="xios $PACKAGES"
-is_set_to_true NEMO_USE_PREBUILT_NETCDF_FORTRAN || PACKAGES="netcdf-fortran $PACKAGES"
-is_set_to_true NEMO_USE_PREBUILT_NETCDF_C || PACKAGES="netcdf-c $PACKAGES"
-is_set_to_true NEMO_USE_PREBUILT_HDF5 || PACKAGES="hdf5 $PACKAGES"
-
-VERSIONS="nemo:4.0.7 hdf5:1.10.7 netcdf-fortran:4.4.3 netcdf-c:4.4.0 xios:2.5"
-TARGET_DIRS="nemo.bin hdf5.bin netcdf-fortran.bin netcdf-c.bin xios.bin"
-
-echo ">> Package list: $PACKAGES"
-
-set -u
-
-dubi_main "$*"
-finished=$(date "+%s")
-echo "----------"
-echo "Full operation time: $(expr $finished - $started) seconds."
-
+source "$DNB_DBSCRIPTSDIR/yaml-config.inc"

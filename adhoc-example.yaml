@@ -1,0 +1,9 @@
+#---
+#environment:
+#  - export NEMO_CODEBASE="DE340_LOCAL"
+#  - export DNB_PACKAGE_VERSIONS=nemo:HEAD^openacc_update2_reduced
+#  - export NEMO_WITH_GPU=1
+#  - export NEMO_WITH_PROFILING=1
+#  - export NEMO_WITH_REPRODUCIBLE=0
+#settings:
+#  default_mode: ":bi"

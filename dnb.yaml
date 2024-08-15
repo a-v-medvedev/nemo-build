@@ -1,0 +1,37 @@
+---
+checks: [ "cmake" ]
+packages:
+  - [ nemo ]
+  - [ xios, "! is_set_to_true NEMO_USE_PREBUILT_XIOS" ]
+  - [ netcdf-c, "! is_set_to_true NEMO_USE_PREBUILT_NETCDF_C" ]
+  - [ netcdf-fortran, "! is_set_to_true NEMO_USE_PREBUILT_NETCDF_FORTRAN" ]
+  - [ hdf5, "! is_set_to_true NEMO_USE_PREBUILT_HDF5" ]
+versions:
+  - condition: "[ $NEMO_CODEBASE == COMMUNITY_4.0 ]"
+    list: [ "nemo:4.0.7", "hdf5:1.10.7", "netcdf-c:4.4.0", "netcdf-fortran:4.4.3", "xios:2.5" ]
+  - condition: "[ $NEMO_CODEBASE == COMMUNITY_4.2 ]"
+    list: [ "nemo:4.2.xxx", "hdf5:1.10.7??", "netcdf-c:4.4.0??", "netcdf-fortran:4.4.3??", "xios:2.5??" ]
+  - condition: "[ $NEMO_CODEBASE == COMMUNITY_5.0 ]"
+    list: [ "nemo:5.0.x", "hdf5:1.10.7??", "netcdf-c:4.4.0??", "netcdf-fortran:4.4.3??", "xios:2.5??" ]
+target_dirs:
+  - [ nemo.bin ]
+  - [ hdf5.bin, "! is_set_to_true NEMO_USE_PREBUILT_HDF5" ]
+  - [ netcdf-c.bin, "! is_set_to_true NEMO_USE_PREBUILT_NETCDF_C" ]
+  - [ netcdf-fortran.bin, "! is_set_to_true NEMO_USE_PREBUILT_NETCDF_FORTRAN" ]
+  - [ xios.bin, "! is_set_to_true NEMO_USE_PREBUILT_XIOS" ]
+psubmit:
+  target_bin: ./nemo-runner.sh
+  job_name: NEMO_test_job
+  before: "source ./nemo-proproc.sh"
+  after: ./nemo-postproc.sh
+specific:
+  - adhoc.yaml
+  - machine.yaml
+preamble:
+  - "echo \"Download and build script for NEMO, for docs please refer: http://xxx.com/xxx.\""
+  - "[ -f ./machine.yaml ] || fatal \"machine.yaml symlink to a architecture-specific file must exist.\""
+environment:
+  - "[ -f nemo-build-select-codebase.inc ] && source nemo-build-select-codebase.inc"
+script:
+  - dubi_main "$*"
+
