@@ -1,4 +1,4 @@
---
+---
 checks: [ "cuda" ]
 environment:
   - module load nvidia-hpc-sdk/24.3 hdf5/1.14.1-2-nvidia-nvhpcx cmake
@@ -22,7 +22,7 @@ psubmit:
   queue_name: ""
   account: XXXXXX
   time_limit: 10
-  nodetype: XXXXXX
+  node_type: XXXXXX
   resource_handling: qos
   generic_resources: gpu:4
   init_commands: "module load nvidia-hpc-sdk/24.3 hdf5/1.14.1-2-nvidia-nvhpcx"
@@ -47,7 +47,7 @@ per-package:
           # Switch on a hack that tweaks makenemo to use an alternative makefile internally
           # NOTE: this is necessary because fcm-based makenemo can't do parallel builds on LUMI
           export NEMO_USE_MAKE=1
-          export NEMO_MAKE_PARALLEL_LEVEL=$MAKE_PARALLEL_LEVEL
+          export NEMO_MAKE_PARALLEL_LEVEL=$DNB_MAKE_PARALLEL_LEVEL
       else
           export NEMO_MAKE_PARALLEL_LEVEL=1
       fi
@@ -83,7 +83,7 @@ per-package:
 
   xios:
     - |
-      export XIOS_MAKE_PARALLEL_LEVEL="$MAKE_PARALLEL_LEVEL"
+      export XIOS_MAKE_PARALLEL_LEVEL="$DNB_MAKE_PARALLEL_LEVEL"
       export XIOS_CCOMPILER="mpicxx"
       export XIOS_FCOMPILER="mpif90"
       export XIOS_LINKER="mpif90"

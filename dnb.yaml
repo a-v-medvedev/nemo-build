@@ -1,11 +1,11 @@
 ---
 checks: [ "cmake" ]
 packages:
-  - [ nemo ]
-  - [ xios, "! is_set_to_true NEMO_USE_PREBUILT_XIOS" ]
+  - [ hdf5, "! is_set_to_true NEMO_USE_PREBUILT_HDF5" ]
   - [ netcdf-c, "! is_set_to_true NEMO_USE_PREBUILT_NETCDF_C" ]
   - [ netcdf-fortran, "! is_set_to_true NEMO_USE_PREBUILT_NETCDF_FORTRAN" ]
-  - [ hdf5, "! is_set_to_true NEMO_USE_PREBUILT_HDF5" ]
+  - [ xios, "! is_set_to_true NEMO_USE_PREBUILT_XIOS" ]
+  - [ nemo ]
 versions:
   - condition: "[ $NEMO_CODEBASE == COMMUNITY_4.0 ]"
     list: [ "nemo:4.0.7", "hdf5:1.10.7", "netcdf-c:4.4.0", "netcdf-fortran:4.4.3", "xios:2.5" ]
