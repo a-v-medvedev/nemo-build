@@ -5,5 +5,7 @@
 #  - export NEMO_WITH_GPU=1
 #  - export NEMO_WITH_PROFILING=1
 #  - export NEMO_WITH_REPRODUCIBLE=0
+#  - export NEMO_WITH_MANAGED_MEMORY=1
+#  - export NEMO_WITH_FAKE_GPU=0
 #settings:
 #  default_mode: ":bi"

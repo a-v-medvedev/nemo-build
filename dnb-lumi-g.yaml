@@ -1,7 +1,12 @@
 ---
 environment:
-  - module load LUMI/23.03 partition/G PrgEnv-cray cpe/23.09 craype-x86-trento craype-accel-amd-gfx90a rocm/5.2.3
-  - module load Subversion/1.14.2
+  - module load LUMI/24.03 partition/G PrgEnv-cray
+  - module load cpe/24.03 craype-x86-trento craype-accel-amd-gfx90a
+  - module load cray-mpich cray-libsci cray-fftw cray-python
+  - module load buildtools
+  - module load rocm/6.0.3
+  - module load cce/16.0.1
+  - module load Subversion/1.14.3
   - export FC=ftn
   - export NEMO_SCRIPTS_FOLDER="lumi-g"
   - export NEMO_AVAILABLE_WORKLOADS="eORCA2-generic"
@@ -11,7 +16,7 @@ environment:
   - export NEMO_USE_PREBUILT_XIOS=FALSE
 settings:
   parallel_level: 16
-  default_mode: ":ubi"
+  default_mode: ":bi"
 psubmit:
   nnodes: 1
   ppn: 8
@@ -20,7 +25,7 @@ psubmit:
   queue_name: "dev-g"
   account: XXXXXX
   time_limit: 10
-  init_commands: "module load PrgEnv-cray cpe/23.09 craype-x86-trento craype-accel-amd-gfx90a rocm cray-fftw/3.3.10.1 cray-hdf5-parallel/1.12.1.5"
+  init_commands: "module load PrgEnv-cray cpe/24.03 craype-x86-trento craype-accel-amd-gfx90a rocm/6.0.3 cray-fftw cray-hdf5-parallel/1.12.2.11"
   injob_init_commands: "export LD_LIBRARY_PATH=lib:$LD_LIBRARY_PATH"
   mpi_script: cray-srun
   batch_script: slurm
@@ -52,12 +57,18 @@ per-package:
     fi
     if is_set_to_true NEMO_WITH_GPU; then
         NEMO_FCFLAGS="$NEMO_FCFLAGS -fopenmp -hacc"
+        export NEMO_CXXGEMS_CXX="CC -DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_HIP -O3"
+        export NEMO_CXXGEMS_FC="${NEMO_FC} -O3"
     else
         NEMO_FCFLAGS="$NEMO_FCFLAGS -fopenmp"
     fi
     export NEMO_LDFLAGS="-fopenmp -lstdc++"
-    export NEMO_FPPFLAGS="-P -traditional -I/opt/cray/pe/mpich/8.1.27/ofi/cray/14.0/include"
+    export NEMO_FPPFLAGS="-P -traditional -I/opt/cray/pe/mpich/8.1.29/ofi/cray/17.0/include"
     export FCGENERAL="-M878 -Jmod -Qmod -hlist=aimd -hmsgs"
+
+    if is_set_to_true NEMO_WITH_PROFILING; then
+        NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_profiling"
+    fi
 
     # GPU related stuff
     if is_set_to_true NEMO_WITH_GPU; then

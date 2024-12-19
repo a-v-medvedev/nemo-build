@@ -25,7 +25,8 @@ psubmit:
   before: "source ./nemo-proproc.sh"
   after: ./nemo-postproc.sh
 specific:
-  - adhoc.yaml
+  - account.yaml
+  - overrides.yaml
   - machine.yaml
 preamble:
   - "echo \"Download and build script for NEMO, for docs please refer: http://xxx.com/xxx.\""

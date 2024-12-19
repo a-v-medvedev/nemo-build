@@ -1,7 +1,7 @@
 ---
 checks: [ "cuda" ]
 environment:
-  - module load nvidia-hpc-sdk/24.3 hdf5/1.14.1-2-nvidia-nvhpcx cmake
+  - module load nvidia-hpc-sdk/24.3 hdf5/1.14.1-2-nvidia-nvhpcx nvidia-hpc-sdk/24.9 cmake
   - export FC=mpifort
   - export CXX=g++
   - export CC=gcc
@@ -25,7 +25,7 @@ psubmit:
   node_type: XXXXXX
   resource_handling: qos
   generic_resources: gpu:4
-  init_commands: "module load nvidia-hpc-sdk/24.3 hdf5/1.14.1-2-nvidia-nvhpcx"
+  init_commands: "module load nvidia-hpc-sdk/24.3 hdf5/1.14.1-2-nvidia-nvhpcx nvidia-hpc-sdk/24.9"
   injob_init_commands: "export LD_LIBRARY_PATH=lib:$LD_LIBRARY_PATH"
   mpi_script: ompi4
   batch_script: slurm
@@ -56,13 +56,18 @@ per-package:
       export NEMO_CC="gcc"
       export NEMO_FC="$FC"
       if is_set_to_true NEMO_WITH_REPRODUCIBLE; then
-          export NEMO_FCFLAGS="-O1 -i4 -r8 -fopenmp -Kieee -nofma -Mnovect"
+          export NEMO_FCFLAGS="-O1 -i4 -r8 -fopenmp -gpu=math_uniform -Mnofma -Mnovect -module mod"
       else
-          export NEMO_FCFLAGS="-O3 -i4 -r8 -fopenmp -tp=native"
+          export NEMO_FCFLAGS="-O3 -i4 -r8 -fopenmp -tp=native -module mod"
       fi
       export NEMO_LDFLAGS="-lstdc++ -fopenmp"
       # Note: to get the MPI includes path, run mpicc -showme
-      export NEMO_FPPFLAGS="-P -traditional -I/gpfs/apps/MN5/ACC/NVIDIA-HPC-SDK/24.3/Linux_x86_64/24.3/comm_libs/12.3/hpcx/hpcx-2.17.1/ompi/include"
+      export NEMO_FPPFLAGS="-P -traditional -I/gpfs/apps/MN5/ACC/NVIDIA-HPC-SDK/24.9/Linux_x86_64/24.9/comm_libs/12.6/hpcx/hpcx-2.20/ompi/include"
+
+      if is_set_to_true NEMO_WITH_PROFILING; then
+          NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_profiling"
+      fi
+
       # GPU related stuff
       if is_set_to_true NEMO_WITH_GPU; then
           if is_set_to_true NEMO_WITH_FAKE_GPU; then
@@ -76,6 +81,13 @@ per-package:
               export NEMO_LDFLAGS="$NEMO_LDFLAGS -lnvToolsExt"
               NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_prof_gpu"
           fi
+          if is_set_to_true NEMO_WITH_MANAGED_MEMORY; then
+              NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_gpu_managed"
+              export NEMO_FCFLAGS="$NEMO_FCFLAGS -gpu=managed"
+              export NEMO_LDFLAGS="$NEMO_LDFLAGS -gpu=managed"
+          fi
+          export NEMO_CXXGEMS_CXX="nvcc -arch sm_90 -O3"
+          export NEMO_CXXGEMS_FC="${NEMO_FC} -cuda -module mod -O3"
       else
           export NEMO_FCFLAGS="$NEMO_FCFLAGS -mp=multicore"
           export NEMO_LDFLAGS="$NEMO_LDFLAGS -mp=multicore"

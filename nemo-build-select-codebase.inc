@@ -1,8 +1,6 @@
 # vi: syntax=sh
 
-set +u
-[ -z "$NEMO_CODEBASE" ] && NEMO_CODEBASE="COMMUNITY_4.0"
-set -u
+[ -v "$NEMO_CODEBASE" ] || NEMO_CODEBASE="COMMUNITY_4.0"
 
 if [ "$NEMO_CODEBASE" == "COMMUNITY_4.0" ]; then
 # Settings for SVN version of NEMO (4.0 versions)
@@ -20,6 +18,9 @@ elif [ "$NEMO_CODEBASE" == "COMMUNITY_5.0" ]; then
     true;
     # Settings for github version of NEMO (5.0 versions)
     # TBD
+else
+    echo "Unknown value for NEMO_CODEBASE"
+    exit 1
 fi
 
 
