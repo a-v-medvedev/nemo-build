@@ -1,0 +1,64 @@
+---
+environment:
+  - module load intel/2023.2.0 impi/2021.10.0 mkl/2023.2.0 cmake 
+  - export FC=ifort
+  - export NEMO_SCRIPTS_FOLDER="mn5-gpp"
+  - export NEMO_AVAILABLE_WORKLOADS=${NEMO_AVAILABLE_WORKLOADS:="eORCA2-generic"}
+  - export NEMO_USE_PREBUILT_HDF5=FALSE
+  - export NEMO_USE_PREBUILT_NETCDF_C=FALSE
+  - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=FALSE
+  - export NEMO_USE_PREBUILT_XIOS=FALSE
+settings:
+  parallel_level: 16
+  default_mode: ":bi"
+psubmit:
+  nnodes: 1
+  ppn: 14
+  nth: 8
+  ngpus: 0
+  queue_name: ""
+  account: bsc32
+  time_limit: 10
+  node_type: gp_debug
+  resource_handling: qos
+  init_commands: "module load intel/2023.2.0 impi/2021.10.0 mkl/2023.2.0"
+  injob_init_commands: "export LD_LIBRARY_PATH=lib:$LD_LIBRARY_PATH"
+  mpi_script: impi
+  batch_script: slurm
+per-package:
+  nemo:
+    - |
+      export NEMO_CPP="cpp"
+      export NEMO_CC="icc"
+      export NEMO_FC="mpiifort"
+      export NEMO_FCFLAGS="-r8 -ip -O3 -fp-model strict -extend-source 132 -heap-arrays -xCORE-AVX2"
+      export NEMO_LDFLAGS="-lstdc++ -fopenmp"
+      # Note: to get the MPI includes path, run mpicc -showme
+      export NEMO_FPPFLAGS="-P -traditional -I/gpfs/apps/MN5/GPP/ONEAPI/2023.2.0/mpi/2021.10.0/include -DWITH_STRICT_FORTRAN_2018"
+      
+      if is_set_to_true NEMO_WITH_PROFILING; then
+          NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_profiling"
+      fi
+
+  xios:
+    - |
+      export XIOS_MAKE_PARALLEL_LEVEL="$DNB_MAKE_PARALLEL_LEVEL"
+      export XIOS_CCOMPILER="mpicc -cc=gcc"
+      export XIOS_FCOMPILER="mpif90"
+      export XIOS_LINKER="mpif90 -nofor-main"
+      export XIOS_CFLAGS="-std=c++03"
+      [ "$V" == "trunk" ] && XIOS_CFLAGS="-std=c++11"
+      XIOS_CFLAGS="$XIOS_CFLAGS -O3 -D BOOST_DISABLE_ASSERTS"
+      export XIOS_CFLAGS="-std=c++11 -O3 -D BOOST_DISABLE_ASSERTS"
+      export XIOS_CPP="mpicc -cc=gcc -EP"
+      export XIOS_FPP="cpp -P"
+
+  netcdf-c: 
+    - |
+      # put here any specific env. setting before netcdf-c build 
+
+  netcdf-fortran: 
+    - |
+      # put here any specific env. setting before netcdf-fortran build
+
+...

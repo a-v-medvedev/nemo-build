@@ -12,7 +12,7 @@ versions:
   - condition: "[ $NEMO_CODEBASE == COMMUNITY_4.2 ]"
     list: [ "nemo:4.2.xxx", "hdf5:1.10.7??", "netcdf-c:4.4.0??", "netcdf-fortran:4.4.3??", "xios:2.5??" ]
   - condition: "[ $NEMO_CODEBASE == COMMUNITY_5.0 ]"
-    list: [ "nemo:5.0.x", "hdf5:1.10.7??", "netcdf-c:4.4.0??", "netcdf-fortran:4.4.3??", "xios:2.5??" ]
+    list: [ "nemo:5.0", "hdf5:1.12.0", "netcdf-c:4.4.0", "netcdf-fortran:4.4.3", "xios:trunk" ]
 target_dirs:
   - [ nemo.bin ]
   - [ hdf5.bin, "! is_set_to_true NEMO_USE_PREBUILT_HDF5" ]
@@ -20,9 +20,9 @@ target_dirs:
   - [ netcdf-fortran.bin, "! is_set_to_true NEMO_USE_PREBUILT_NETCDF_FORTRAN" ]
   - [ xios.bin, "! is_set_to_true NEMO_USE_PREBUILT_XIOS" ]
 psubmit:
-  target_bin: ./nemo-runner.sh
+  target_bin: ./runner-script.sh
   job_name: NEMO_test_job
-  before: "source ./nemo-proproc.sh"
+  before: "source ./nemo-preproc.sh"
   after: ./nemo-postproc.sh
 specific:
   - account.yaml
