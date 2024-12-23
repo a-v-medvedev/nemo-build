@@ -9,7 +9,7 @@ environment:
   - module load Subversion/1.14.3
   - export FC=ftn
   - export NEMO_SCRIPTS_FOLDER="lumi-g"
-  - export NEMO_AVAILABLE_WORKLOADS="eORCA2-generic"
+  - export NEMO_AVAILABLE_WORKLOADS="ORCA2-generic"
   - export NEMO_USE_PREBUILT_HDF5=FALSE
   - export NEMO_USE_PREBUILT_NETCDF_C=FALSE
   - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=FALSE

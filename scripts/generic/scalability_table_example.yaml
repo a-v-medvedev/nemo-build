@@ -1,0 +1,66 @@
+---
+base_binary_name: nemo
+workload_name: eORCA1-debug
+binaries:
+  - nemo.cpu.prof
+#  - nemo.gpu.acc.prof
+#  - nemo.gpu.omp.prof
+
+environment:
+  - export NEMO_WORKLOAD_NAME=$WORKLOAD_NAME
+
+scope:
+  nnodes: [ 1, 2, 4 ]
+  ntakes: 5
+
+metrics:
+  pattern: "(ice_dyn_adv_pra)|(ice_var)|(icedyn_adv)"
+  quantity: 19
+
+settings:
+  run_under_profiler: false
+  async_psubmit: false
+  omit_downloads: true
+
+general:
+  build: |
+         echo "---" > overrides.yaml
+         echo "environment:" >> overrides.yaml
+         echo "  - export NEMO_CODEBASE=\"DE340_LOCAL\"" >> overrides.yaml
+         echo "  - export DNB_PACKAGE_VERSIONS=nemo:HEAD^$branch" >> overrides.yaml
+         echo "  - export NEMO_WITH_GPU=$gpu" >> overrides.yaml
+         echo "  - export NEMO_WITH_PROFILING=$prof" >> overrides.yaml
+         echo "  - export NEMO_WITH_REPRODUCIBLE=$repro" >> overrides.yaml
+         echo "  - export NEMO_WITH_FAKE_GPU=$fake" >> overrides.yaml
+         echo "settings:" >> overrides.yaml
+         echo "  default_mode: \":bi\"" >> overrides.yaml
+
+  run: |
+       if is_set_to_true RUN_UNDER_PROFILER; then
+         case $nn in
+           1) export PROFILE=only-selected-one:5
+           ;;
+           2) export PROFILE=only-selected-one:15
+           ;;
+           4) export PROFILE=only-selected-one:28
+           ;;
+         esac
+       else
+         unset PROFILE
+       fi
+       args="./$bin"
+
+per-binary:
+  nemo.cpu.prof:
+    build: |
+           branch="original"; gpu=0; fake=0; prof=1; repro=0;
+ 
+  nemo.gpu.acc.prof:
+    build: |
+           branch="openacc_update2_reduced"; gpu=1; fake=0; prof=1; repro=0
+
+  nemo.gpu.omp.prof:
+    build: |
+           branch="loop-test"; gpu=1; fake=0; prof=1; repro=0
+
+...

@@ -3,7 +3,7 @@ environment:
   - module load intel/2023.2.0 impi/2021.10.0 mkl/2023.2.0 cmake 
   - export FC=ifort
   - export NEMO_SCRIPTS_FOLDER="mn5-gpp"
-  - export NEMO_AVAILABLE_WORKLOADS=${NEMO_AVAILABLE_WORKLOADS:="eORCA2-generic"}
+  - export NEMO_AVAILABLE_WORKLOADS=${NEMO_AVAILABLE_WORKLOADS:="ORCA2-generic"}
   - export NEMO_USE_PREBUILT_HDF5=FALSE
   - export NEMO_USE_PREBUILT_NETCDF_C=FALSE
   - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=FALSE
