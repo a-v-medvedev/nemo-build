@@ -21,7 +21,9 @@ elif [ "$NEMO_CODEBASE" == "COMMUNITY_5.0" ]; then
     export NEMO_CFG="ORCA2"
     export NEMO_SUBCOMPONENTS="OCE ICE"
     export NEMO_KEYS_TO_DELETE="key_top"
-    export NEMO_KEYS_TO_ADD="-"     #"key_xios key_xios3"
+    export NEMO_KEYS_TO_ADD="bld::tool::fppkeys key_si3 key_xios key_qco key_vco_1d3d"
+    is_set_to_true NEMO_WITH_RK3 && NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_RK3"
+    is_set_to_true NEMO_WITH_RK3 || NEMO_KEYS_TO_DEL="$NEMO_KEYS_TO_DEL key_RK3"
     export NEMO_WORKLOAD_ARCHIVE="ORCA2_ICE_v5.0.0.tar.gz"
     export NEMO_WORKLOAD_MD5="872eea51f22c5dabaffd268c0220eba6"
 else
