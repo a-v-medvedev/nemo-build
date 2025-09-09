@@ -38,23 +38,26 @@ if [ "$SLURM_NTASKS_PER_NODE" == 8 ]; then
     export MPICH_OFI_NIC_POLICY=GPU
     export MPICH_OFI_NIC_VERBOSE=2
 
-    if is_set_to_true PROFILE; then
+    if [ -v PROFILE ]; then
         export PROFILE
+        [ "$local_rank" == 0 ] && echo ">> runner-script.sh: executing: numactl -l --all --physcpubind=${physcores[$local_rank]} -- ./profiling-wrapper.sh $BINARY $ARGS"
         numactl -l --all --physcpubind=${physcores[$local_rank]} -- ./profiling-wrapper.sh $BINARY $*
     else
 # NOTE: possible workaround for cce/16 and rocm/6 compatibility bug:
 #        export LD_PRELOAD=/opt/cray/pe/gcc/12.2.0/snos/lib64/libstdc++.so.6
+        [ "$local_rank" == 0 ] && echo ">> runner-script.sh: executing: numactl -l --all --physcpubind=${physcores[$local_rank]} -- $BINARY $ARGS"
         numactl -l --all --physcpubind=${physcores[$local_rank]} -- $BINARY $*
     fi
 
 else
 
-    if is_set_to_true PROFILE; then
+    if [ -v PROFILE ]; then
         export PROFILE
-        ./profiling-wrapper.sh $BINARY $*
+        [ "$local_rank" == 0 ] && echo ">> runner-script.sh: executing: ./profiling-wrapper.sh $BINARY $ARGS"
+        ./profiling-wrapper.sh $BINARY $ARGS
     else
-        $BINARY $*
+        [ "$local_rank" == 0 ] && echo ">> runner-script.sh: executing: $BINARY $ARGS"
+        $BINARY $ARGS
     fi
-
 fi
 

@@ -72,23 +72,40 @@ echo "    U_norm_max: $(array_to_yaml_array ${U_norm_max[@]})" >> result.${PSUBM
 echo "    S_min: $(array_to_yaml_array ${S_min[@]})" >> result.${PSUBMIT_JOBID}.yaml
 echo "    S_max: $(array_to_yaml_array ${S_max[@]})" >> result.${PSUBMIT_JOBID}.yaml
 
-ice_dyn_adv_pra="ice_dyn_adv_pra ice_dyn_adv_pra_adv_x ice_dyn_adv_pra_adv_y ice_dyn_adv_pra_Hbig ice_dyn_adv_pra_icemax3D ice_dyn_adv_pra_icemax4D ice_var_zapneg ice_dyn_adv_pra_h2d ice_dyn_adv_pra_d2h ice_dyn_adv_pra_BLOCK_A ice_dyn_adv_pra_BLOCK_B ice_dyn_adv_pra_BLOCK_C ice_dyn_adv_pra_BLOCK_D ice_dyn_adv_pra_BLOCK_E ice_dyn_adv_pra_LBC_1 ice_dyn_adv_pra_LBC_2 ice_dyn_adv_pra_LBC_3 ice_dyn_adv_pra_LBC_4"
+#ice_dyn_adv_pra="ice_dyn_adv_pra ice_dyn_adv_pra_adv_x ice_dyn_adv_pra_adv_y ice_dyn_adv_pra_Hbig ice_dyn_adv_pra_icemax3D ice_dyn_adv_pra_icemax4D ice_var_zapneg ice_dyn_adv_pra_h2d ice_dyn_adv_pra_d2h ice_dyn_adv_pra_BLOCK_A ice_dyn_adv_pra_BLOCK_B ice_dyn_adv_pra_BLOCK_C ice_dyn_adv_pra_BLOCK_D ice_dyn_adv_pra_BLOCK_E ice_dyn_adv_pra_LBC_1 ice_dyn_adv_pra_LBC_2 ice_dyn_adv_pra_LBC_3 ice_dyn_adv_pra_LBC_4"
+ice_dyn_adv_pra=""
 
-SUBROUTINES="sbc sbc_stokes icestp ice_dyn icedyn_rdgrft icedyn_adv icedyn_rhg ice_thd_main ice_thd_jllopp iceupdate_flx iceitd_rem icealb iceitd_reb ice_strengh icesbc ice_thd_do icethd icecor icewri iceupdate_tau dyn_ldf dyn_spg_ts dyn_zdf dia_wri tra_bbl tra_ldf_iso tra_zdf_imp dom_vvl_sf_swp"
+SUBROUTINES_v4="stp stp_sbc icestp icedyn_rhg icedyn_adv $ice_dyn_adv_pra icedyn_rdgrft icethd stp_thermodyn stp_vertical zdf_phy stp_lateral ldf_slp stp_oceandyn dom_vvl_sf_nxt dyn_adv dyn_vor dyn_ldf dyn_hpg dyn_spg dyn_zdf stp_tracers tra_adv tra_adv_fct tra_ldf tra_ldf_iso tra_zdf tra_zdf_imp stp_nxt tra_nxt dyn_nxt dom_vvl_sf_swp"
+SUBROUTINES_v5="stp stp_sbc icestp icedyn_rhg icedyn_adv $ice_dyn_adv_pra icedyn_rdgrft icethd stp_thermodyn stp_vertical zdf_phy stp_lateral ldf_slp stp_oceandyn dyn_adv dyn_vor_3D dyn_ldf dyn_hpg dyn_spg dyn_zdf stp_tracers tra_adv tra_ldf tra_zdf stp_nxt"
+SUBROUTINES=$SUBROUTINES_v4
+[ "$NEMO_IS_NEMO5" == "TRUE" ] && SUBROUTINES=$SUBROUTINES_v5
+
+
+nemo4_keyword="Averaged inclusive timing on all processors"
+nemo5_keyword="AVG values over all MPI processes:"
+keyword=$nemo4_keyword
+[ "$NEMO_IS_NEMO5" == "TRUE" ] && keyword=$nemo5_keyword
+
+nemo4_timer='/Averaged inclusive timing on all processors/ {start=1} /------------/{if (start) ++start; if (start == 3) start=0} start && $1==SUB {print int($2*1000000) }'
+nemo5_timer='/AVG values over all MPI processes:/ {start++} /========/{if (start>=NENTR) start=0;} start>=NENTR && $1==SUB {v=$8; gsub(/s/,"",v); print int(v*1000000.0) }'
+timer=$nemo4_timer
+[ "$NEMO_IS_NEMO5" == "TRUE" ] && timer=$nemo5_timer
+
 # Averaged inclusive CPU time on all processors
 echo "timing:" >> result.${PSUBMIT_JOBID}.yaml
 echo "    elapsed_time:" >> result.${PSUBMIT_JOBID}.yaml
-for sub in $SUBROUTINES; do
-    if [ -e timing.output ]; then
-        value=$(cat timing.output | awk -vSUB=$sub '/Averaged inclusive timing on all processors/ {start=1} /------------/{if (start) ++start; if (start == 3) start=0} start && $1==SUB {print int($2*1000000) }')
-## Attempt of adaptation for NEMO 5:
-##Timing : AVG values over all MPI processes:
-        value=$(cat timing.output | awk -vSUB=$sub '/Timing : AVG values over all MPI processes:/ {start=1} /------------/{if (start) ++start; if (start == 4) start=0} start && $2==SUB {print int($3*1000000) }')
+if [ -e timing.output ]; then
+    nentries=$(grep "$keyword" timing.output 2>/dev/null | wc -l)
+    for sub in $SUBROUTINES; do
+        value=$(awk -vSUB=$sub -vNENTR=$nentries "$timer" < timing.output)
         [ -z "$value" ] && value=0
         echo "        ${sub}: $value" >> result.${PSUBMIT_JOBID}.yaml
-    fi
-done
+    done
+fi
 echo "..." >> result.${PSUBMIT_JOBID}.yaml
+
+cat result.${PSUBMIT_JOBID}.yaml | egrep '(stp:)|(stp_.*:)'
+
 
 # We don't submit the result.yaml if we understand that program didn't even run
 # This will be shown as a NORES state as a test result
@@ -104,18 +121,30 @@ for i in $FILES; do
 done
 rm -f ocean.output_*
 if [ "$(echo *${PSUBMIT_JOBID}*)" != "*${PSUBMIT_JOBID}*" ]; then
-    for i in *${PSUBMIT_JOBID}*; do 
+    for i in *${PSUBMIT_JOBID}*; do
         [ -e ../$i ] || mv $i ..
     done
 fi
 cd ..
-rm -rf ${NEMO_TESTBED_DIR}
+if [ -v NEMO_KEEP_TESTBED ]; then
+    if [ -z "$NEMO_KEEP_TESTBED" -o "$NEMO_KEEP_TESTBED" == "false" -o "$NEMO_KEEP_TESTBED" == "FALSE" ]; then
+        rm -rf ${NEMO_TESTBED_DIR}
+    else
+    mv ${NEMO_TESTBED_DIR} ${NEMO_TESTBED_DIR}.${PSUBMIT_JOBID}
+    fi
+else
+    rm -rf ${NEMO_TESTBED_DIR}
+fi
 
 pswrpout=psubmit_wrapper_output.${PSUBMIT_JOBID}
 if [ -f $pswrpout ]; then
     if grep -q 'Caught signal' $pswrpout; then
         cat $pswrpout | awk '/==== backtrace \(/ && start == 1 { start=2; } /======/{print; start=0} /Caught signal/ {print ">> STATUS: CRASH"; print; start=1} start==2{print}' > stacktrace.${PSUBMIT_JOBID}
     fi
+    if grep -q 'Accelerator Fatal Error:' $pswrpout; then
+        cat $pswrpout | awk '/Accelerator Fatal Error:/ { if (crash==0) print ">> STATUS: CRASH"; crash++; start=1; } /^ Line:/ && start==1 {print; print ""; start=0} start==1{print}' > stacktrace.${PSUBMIT_JOBID}
+    fi
+
     if grep -q '>> STATUS: ASSERT' $pswrpout; then
         echo ">> STATUS: ASSERT" > stacktrace.${PSUBMIT_JOBID}
     fi

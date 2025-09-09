@@ -6,7 +6,7 @@ BEGIN { if (FLDS=="") exit 1; split(FLDS,FIELDS,/,/); }
 
 /^---/ {next} 
 
-/np=[0-9]+: / { 
+/nn=[0-9]+.*: / { 
   print "\n## " $0 
   printf "\n| Region |" 
   for (i in FIELDS) printf " " FIELDS[i] " |"; 

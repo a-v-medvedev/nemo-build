@@ -84,6 +84,8 @@ make_subroutine_listing() {
   done
 }
 
+[ -e "$LOG" ] || { echo "FATAL: The file $LOG is used to get the compiler output."; exit 1; }
+[ -d "$SRC_PATH" ] || { echo "FATAL: We expect directory: $SRC_PATH to contain the preprocesses source code."; exit 1; }
 awk "$get_all_diagnostic_lines" < $LOG | sort | uniq > .lines.txt
 cat .lines.txt | awk '{print $1}' | uniq | while read subroutine; do 
   src_file=$(grep -iIrl "^[ ]*SUBROUTINE.*$subroutine" $SRC_PATH/*) 
@@ -91,6 +93,7 @@ cat .lines.txt | awk '{print $1}' | uniq | while read subroutine; do
   make_subroutine_listing "$subroutine" ".${subroutine}__lines.txt" "$src_file" 
 done
 
-rm .lines.txt
-rm .*__lines.txt
-rm .*__src.txt
+rm -f .lines.txt
+rm -f .*__lines.txt
+rm -f .*__src.txt
+

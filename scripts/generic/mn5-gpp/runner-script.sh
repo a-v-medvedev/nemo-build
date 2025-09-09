@@ -24,11 +24,19 @@ export local_rank=$PMI_RANK
 export OMP_PROC_BIND=close
 export OMP_PLACES=cores
 
-if is_set_to_true PROFILE; then
+mpiexec=$(basename $MPIEXEC | awk -F'[-.]' '$1=="mpiexec" {print $2}')
+if [ "$mpiexec" == "impi" ]; then
+    [ -v I_MPI_PIN ] || export I_MPI_PIN=1
+    [ -v I_MPI_PIN_DOMAIN ] || export I_MPI_PIN_DOMAIN=core
+fi
+
+if [ -v PROFILE ]; then
     export PROFILE
-    ./profiling-wrapper.sh $BINARY $*
+    [ "$local_rank" == 0 ] && echo ">> runner-script.sh: executing: ./profiling-wrapper.sh $BINARY $ARGS"
+    ./profiling-wrapper.sh $BINARY $ARGS
 else
-    $BINARY $*
+    [ "$local_rank" == 0 ] && echo ">> runner-script.sh: executing: $BINARY $ARGS"
+    $BINARY $ARGS
 fi
 
 

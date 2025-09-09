@@ -1,10 +1,9 @@
 ---
-base_binary_name: nemo
 workload_name: eORCA1-debug
-binaries:
+binary-confs:
   - nemo.cpu.prof
-#  - nemo.gpu.acc.prof
-#  - nemo.gpu.omp.prof
+  - nemo.gpu.acc.prof
+  - nemo.gpu.omp.prof
 
 environment:
   - export NEMO_WORKLOAD_NAME=$WORKLOAD_NAME
@@ -32,35 +31,30 @@ general:
          echo "  - export NEMO_WITH_PROFILING=$prof" >> overrides.yaml
          echo "  - export NEMO_WITH_REPRODUCIBLE=$repro" >> overrides.yaml
          echo "  - export NEMO_WITH_FAKE_GPU=$fake" >> overrides.yaml
-         echo "settings:" >> overrides.yaml
-         echo "  default_mode: \":bi\"" >> overrides.yaml
+         echo "..." >> overrides.yaml
 
   run: |
        if is_set_to_true RUN_UNDER_PROFILER; then
          case $nn in
-           1) export PROFILE=only-selected-one:5
-           ;;
-           2) export PROFILE=only-selected-one:15
-           ;;
-           4) export PROFILE=only-selected-one:28
-           ;;
+           1) export PROFILE=only-selected-one:5;;
+           2) export PROFILE=only-selected-one:15;;
+           4) export PROFILE=only-selected-one:28;;
          esac
        else
          unset PROFILE
        fi
-       args="./$bin"
 
-per-binary:
+per-binary-conf:
   nemo.cpu.prof:
     build: |
            branch="original"; gpu=0; fake=0; prof=1; repro=0;
  
   nemo.gpu.acc.prof:
     build: |
-           branch="openacc_update2_reduced"; gpu=1; fake=0; prof=1; repro=0
+           branch="master"; gpu=1; fake=0; prof=1; repro=0
 
   nemo.gpu.omp.prof:
     build: |
-           branch="loop-test"; gpu=1; fake=0; prof=1; repro=0
+           branch="omp"; gpu=1; fake=0; prof=1; repro=0
 
 ...

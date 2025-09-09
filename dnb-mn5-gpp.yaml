@@ -1,13 +1,20 @@
 ---
 environment:
-  - module load intel/2023.2.0 impi/2021.10.0 mkl/2023.2.0 cmake 
+  - module load intel/2023.2.0 impi/2021.10.0 mkl/2023.2.0 hdf5/1.14.1-2 pnetcdf/1.12.3 netcdf/c-4.9.2_fortran-4.6.1_cxx4-4.3.1_hdf5-1.14.1-2_pnetcdf-1.12.3
   - export FC=ifort
   - export NEMO_SCRIPTS_FOLDER="mn5-gpp"
-  - export NEMO_AVAILABLE_WORKLOADS=${NEMO_AVAILABLE_WORKLOADS:="ORCA2-generic"}
-  - export NEMO_USE_PREBUILT_HDF5=FALSE
-  - export NEMO_USE_PREBUILT_NETCDF_C=FALSE
-  - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=FALSE
-  - export NEMO_USE_PREBUILT_XIOS=FALSE
+  - export NEMO_DVC_INIT="module load singularity"
+  - export NEMO_DVC_CMD="singularity exec -e --bind /gpfs/projects/.../dvc-cache-de340_container /gpfs/projects/.../dvc.sif dvc"
+  - export NEMO_DVC_CACHE_DIR="/gpfs/projects/.../.dvc/cache"
+  - export NEMO_AVAILABLE_WORKLOADS=${NEMO_AVAILABLE_WORKLOADS:="eORCA1-debug eORCA12-spinup eORCA1-spinup"}
+  - export NEMO_USE_PREBUILT_HDF5=TRUE
+  - export NEMO_USE_PREBUILT_NETCDF_C=TRUE
+  - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=TRUE
+  - export NEMO_USE_PREBUILT_XIOS=TRUE
+  - export NEMO_HDF5_PATH="/apps/GPP/HDF5/1.14.1-2/INTEL/IMPI"
+  - export NEMO_NETCDF_C_PATH="/apps/GPP/NETCDF/c-4.9.2_fortran-4.6.1_cxx4-4.3.1_hdf5-1.14.1-2_pnetcdf-1.12.3/INTEL/IMPI"
+  - export NEMO_NETCDF_FORTRAN_PATH="/apps/GPP/NETCDF/c-4.9.2_fortran-4.6.1_cxx4-4.3.1_hdf5-1.14.1-2_pnetcdf-1.12.3/INTEL/IMPI"
+  - export NEMO_XIOS_PATH="/gpfs/projects/.../xios-2.5"
 settings:
   parallel_level: 16
   default_mode: ":bi"
@@ -17,11 +24,11 @@ psubmit:
   nth: 8
   ngpus: 0
   queue_name: ""
-  account: bsc32
+  account: XXXX
   time_limit: 10
-  node_type: gp_debug
+  node_type: XXXX
   resource_handling: qos
-  init_commands: "module load intel/2023.2.0 impi/2021.10.0 mkl/2023.2.0"
+  init_commands: "module load intel/2023.2.0 impi/2021.10.0 mkl/2023.2.0 hdf5/1.14.1-2 pnetcdf/1.12.3 netcdf/c-4.9.2_fortran-4.6.1_cxx4-4.3.1_hdf5-1.14.1-2_pnetcdf-1.12.3"
   injob_init_commands: "export LD_LIBRARY_PATH=lib:$LD_LIBRARY_PATH"
   mpi_script: impi
   batch_script: slurm
@@ -31,7 +38,7 @@ per-package:
       export NEMO_CPP="cpp"
       export NEMO_CC="icc"
       export NEMO_FC="mpiifort"
-      export NEMO_FCFLAGS="-r8 -ip -O3 -fp-model strict -extend-source 132 -heap-arrays -xCORE-AVX2"
+      export NEMO_FCFLAGS="-O3 -g -traceback --unroll -inline -no-heap-arrays -xHost -qopt-prefetch=3 -align array64byte -qopt-dynamic-align -qoverride-limits -fp-speculation=strict -fp-model=strict -fopenmp"
       export NEMO_LDFLAGS="-lstdc++ -fopenmp"
       # Note: to get the MPI includes path, run mpicc -showme
       export NEMO_FPPFLAGS="-P -traditional -I/gpfs/apps/MN5/GPP/ONEAPI/2023.2.0/mpi/2021.10.0/include -DWITH_STRICT_FORTRAN_2018"
@@ -42,14 +49,11 @@ per-package:
 
   xios:
     - |
-      export XIOS_MAKE_PARALLEL_LEVEL="$DNB_MAKE_PARALLEL_LEVEL"
+      export XIOS_MAKE_PARALLEL_LEVEL="$MAKE_PARALLEL_LEVEL"
       export XIOS_CCOMPILER="mpicc -cc=gcc"
       export XIOS_FCOMPILER="mpif90"
       export XIOS_LINKER="mpif90 -nofor-main"
-      export XIOS_CFLAGS="-std=c++03"
-      [ "$V" == "trunk" ] && XIOS_CFLAGS="-std=c++11"
-      XIOS_CFLAGS="$XIOS_CFLAGS -O3 -D BOOST_DISABLE_ASSERTS"
-      export XIOS_CFLAGS="-std=c++11 -O3 -D BOOST_DISABLE_ASSERTS"
+      export XIOS_CFLAGS="-std=c++03 -O3 -D BOOST_DISABLE_ASSERTS"
       export XIOS_CPP="mpicc -cc=gcc -EP"
       export XIOS_FPP="cpp -P"
 
