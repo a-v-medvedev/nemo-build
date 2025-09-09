@@ -1,0 +1,15 @@
+--- a/examples/nemo/scripts/insert_loop_parallelism.py
++++ b/examples/nemo/scripts/insert_loop_parallelism.py
+@@ -82,6 +82,10 @@ FILES_TO_SKIP = [
+     "fldread.f90",
+ ]
+ 
++env_var = os.environ.get('PSYCLONE__FILES_TO_SKIP', '')
++additional_files_to_skip = env_var.split(',') if env_var else []
++FILES_TO_SKIP += additional_files_to_skip
++
+ NEMOV5_EXCLUSIONS = []
+ 
+ NEMOV4_EXCLUSIONS = [
+
+
