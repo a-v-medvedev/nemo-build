@@ -1,7 +1,7 @@
 #!/bin/bash
 
-source $DNB_DBSCRIPTSDIR/includes.inc
-source $DNB_DBSCRIPTSDIR/apps-nemo.inc
+source dbscripts/includes.inc
+source dbscripts/apps-nemo.inc
 
 function dnb_sandbox() {
     i_mksandbox
@@ -34,4 +34,4 @@ function dnb_sandbox() {
     i_copy_scal_scripts
 }
 
-source "$DNB_DBSCRIPTSDIR/yaml-config.inc"
+source dbscripts/yaml-config.inc

@@ -2,10 +2,8 @@
 environment:
   - export NEMO_CODEBASE="COMMUNITY_4.0"
   - export DNB_PACKAGE_VERSIONS=nemo:HEAD^master
-  - export NEMO_WITH_GPU=0
   - export NEMO_WITH_PROFILING=0
   - export NEMO_WITH_REPRODUCIBLE=1
-  - export NEMO_WITH_FAKE_GPU=0
 ##- export NEMO_WITH_EMBEDDED_PREPROC=TRUE -- optional: replace traditional makenemo preprocessing
 ##                                            with embedded preprocessing of the Fortran compiler
 ##                                            (possible with a bit of flags moving at least 
@@ -13,9 +11,9 @@ environment:
 
 ## For NEMO5 community repository:
 #  - export NEMO_CODEBASE="COMMUNITY_5.0"
-#  - export NEMO_AVAILABLE_WORKLOADS="ORCA2-generic ORCA025-debug" ## NOTE: we expect the workloads to be placed in $HOME/data
-#                                                                  ## NOTE: (symlink: $HOME/data -> /some/global/file/system)
-#  - export NEMO_XIOS_PATH="/gpfs/projects/bsc32/EDITO/NEMO5-GPU/third_party/xios-trunk-nvhpc"
+#  - export NEMO_AVAILABLE_WORKLOADS="ORCA2-generic" ## NOTE: we expect the workloads to be placed in $HOME/data
+#                                                    ## NOTE: (symlink: $HOME/data -> /some/global/file/system)
+#  - export NEMO_XIOS_PATH="/gpfs/projects/.../third_party/xios-trunk-nvhpc"
 #  - export NEMO_USE_MAKE=FALSE
 #  - export NEMO_WITH_REPRODUCIBLE=0
 #  - export NEMO_WITH_GPU=0
