@@ -6,11 +6,7 @@ environment:
   - export CXX=g++
   - export CC=gcc
   - export NEMO_SCRIPTS_FOLDER="mn5-acc"
-  - export NEMO_DVC_INIT="module load singularity"
-  - export NEMO_DVC_CMD="singularity exec -e --bind /gpfs/projects/.../dvc-cache-de340_container /gpfs/projects/.../dvc.sif dvc"
-  - export NEMO_DVC_CACHE_DIR="/gpfs/projects/.../.dvc/cache"
-  ## NOTE: for NEMO5 this should be: export NEMO_AVAILABLE_WORKLOADS="ORCA2-generic ORCA025-debug"
-  - export NEMO_AVAILABLE_WORKLOADS=${NEMO_AVAILABLE_WORKLOADS:="eORCA1-debug eORCA12-spinup eORCA025-spinup eORCA1-spinup"}
+  - export NEMO_AVAILABLE_WORKLOADS=${NEMO_AVAILABLE_WORKLOADS:="ORCA2-generic"}
   - export NEMO_USE_PREBUILT_HDF5=TRUE
   - export NEMO_USE_PREBUILT_NETCDF_C=TRUE
   - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=TRUE
@@ -18,7 +14,6 @@ environment:
   - export NEMO_HDF5_PATH="/apps/ACC/HDF5/1.14.1-2/NVIDIA/NVHPCX"
   - export NEMO_NETCDF_C_PATH=${NEMO_NETCDF_C_PATH:="/gpfs/projects/.../netcdf-c-4.4.0-nvhpc"}
   - export NEMO_NETCDF_FORTRAN_PATH=${NEMO_NETCDF_FORTRAN_PATH:="/gpfs/projects/.../netcdf-fortran-4.4.3-nvhpc"}
-  - export NEMO_XIOS_PATH=${NEMO_XIOS_PATH:="/gpfs/projects/.../xios-2.5-nvhpc"}
 settings:
   parallel_level: 16
   default_mode: ":bi"
