@@ -1,0 +1,17 @@
+.nemo-make-hack
+machine.yaml
+nemo-*.src
+nemo-*/
+nemo.bin
+nemo.dwn
+nemo.src
+overrides.yaml
+psyclone-*.src
+psyclone.bin
+psyclone.dwn
+psyclone.src
+sandbox
+scalability_table.sh
+scalability_table_example.yaml
+scalability_table_to_markdown.awk
+
