@@ -6,7 +6,7 @@ BEGIN { if (FLDS=="") exit 1; split(FLDS,FIELDS,/,/); }
 
 /^---/ {next} 
 
-/np=[0-9]+: / { 
+/nn=[0-9]+.*: / { 
   print "\n## " $0 
   printf "\n| Region |" 
   for (i in FIELDS) printf " " FIELDS[i] " |"; 
@@ -41,9 +41,9 @@ BEGIN { if (FLDS=="") exit 1; split(FLDS,FIELDS,/,/); }
   printf "| `" region "` | " int(baseline) " | "
   for (i in V) {
     printf " "
-    if (nominmax || minidx==i) printf "**"
+    #if (nominmax || minidx==i) printf "**"
     printf int(V[i])
-    if (nominmax || minidx==i) printf "**"
+    #if (nominmax || minidx==i) printf "**"
     printf " |"
   }
   if (baseline!=0 && min!=0) {

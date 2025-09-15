@@ -1,26 +1,23 @@
 ---
-base_binary_name: nemo
-workload_name: eORCA1-debug
-binaries:
-  - nemo.cpu.prof
-#  - nemo.gpu.acc.prof
-#  - nemo.gpu.omp.prof
+workload_name: eORCA025-spinup
+binary-confs:
+  - nemo.cpu.opt.openmp
+  - nemo.cpu.opt.noopenmp
 
 environment:
   - export NEMO_WORKLOAD_NAME=$WORKLOAD_NAME
 
 scope:
-  nnodes: [ 1, 2, 4 ]
-  ntakes: 5
+  nnodes: [ 4:8:7 8:8:7 16:8:7 ]               # We fix LUMI parallel configuration here: 8 ranks x 7 threads 
+  ntakes: 3
 
 metrics:
-  pattern: "(ice_dyn_adv_pra)|(ice_var)|(icedyn_adv)"
-  quantity: 19
+   pattern: "^        .*: [0-9]+"              # Every timer from results.yaml will match
+#  pattern: "(ice_dyn_adv_pra)|(ice_var)|(icedyn_adv)"
 
 settings:
   run_under_profiler: false
   async_psubmit: false
-  omit_downloads: true
 
 general:
   build: |
@@ -32,35 +29,22 @@ general:
          echo "  - export NEMO_WITH_PROFILING=$prof" >> overrides.yaml
          echo "  - export NEMO_WITH_REPRODUCIBLE=$repro" >> overrides.yaml
          echo "  - export NEMO_WITH_FAKE_GPU=$fake" >> overrides.yaml
-         echo "settings:" >> overrides.yaml
-         echo "  default_mode: \":bi\"" >> overrides.yaml
+         echo "..." >> overrides.yaml
 
   run: |
-       if is_set_to_true RUN_UNDER_PROFILER; then
-         case $nn in
-           1) export PROFILE=only-selected-one:5
-           ;;
-           2) export PROFILE=only-selected-one:15
-           ;;
-           4) export PROFILE=only-selected-one:28
-           ;;
-         esac
-       else
-         unset PROFILE
-       fi
-       args="./$bin"
+       NSTEPS=100 
 
 per-binary:
-  nemo.cpu.prof:
+  nemo.cpu.opt.openmp:
     build: |
-           branch="original"; gpu=0; fake=0; prof=1; repro=0;
+           branch="master"; gpu=0; fake=0; prof=0; repro=0;
+    run: |
+         true
  
-  nemo.gpu.acc.prof:
+  nemo.cpu.opt.noopenmp:
     build: |
-           branch="openacc_update2_reduced"; gpu=1; fake=0; prof=1; repro=0
-
-  nemo.gpu.omp.prof:
-    build: |
-           branch="loop-test"; gpu=1; fake=0; prof=1; repro=0
+           branch="master"; gpu=0; fake=0; prof=0; repro=0
+    run: |
+         _np=$(($np * $nt)); nt=1; np=$_np  # To make it run without OpenMP, set np=np*nt and then reset nt=1 (np will become 56)       
 
 ...
