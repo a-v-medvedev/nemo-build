@@ -33,9 +33,9 @@ specific:
 preamble:
   - "echo \"Download and build script for NEMO, for docs please refer: https://github.com/.../README.md.\""
   - "[ -f ./machine.yaml ] || fatal \"machine.yaml symlink to a architecture-specific file must exist.\""
+  - export NEMO_USE_PREBUILT_XIOS=${NEMO_USE_PREBUILT_XIOS:=TRUE}
 environment:
   - "[ -f nemo-build-select-codebase.inc ] && source nemo-build-select-codebase.inc"
-  - export NEMO_USE_PREBUILT_XIOS=${NEMO_USE_PREBUILT_XIOS:=TRUE}
 script:
   - dubi_main "$*"
 
