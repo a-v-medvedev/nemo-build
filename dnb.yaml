@@ -35,6 +35,7 @@ preamble:
   - "[ -f ./machine.yaml ] || fatal \"machine.yaml symlink to a architecture-specific file must exist.\""
 environment:
   - "[ -f nemo-build-select-codebase.inc ] && source nemo-build-select-codebase.inc"
+  - export NEMO_USE_PREBUILT_XIOS=${NEMO_USE_PREBUILT_XIOS:=TRUE}
 script:
   - dubi_main "$*"
 

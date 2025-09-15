@@ -13,17 +13,20 @@ environment:
 #  - export NEMO_CODEBASE="COMMUNITY_5.0"
 #  - export NEMO_AVAILABLE_WORKLOADS="ORCA2-generic" ## NOTE: we expect the workloads to be placed in $HOME/data
 #                                                    ## NOTE: (symlink: $HOME/data -> /some/global/file/system)
-#  - export NEMO_XIOS_PATH="/gpfs/projects/.../third_party/xios-trunk-nvhpc"
-#  - export NEMO_USE_MAKE=FALSE
 #  - export NEMO_WITH_REPRODUCIBLE=0
 #  - export NEMO_WITH_GPU=0
 #  - export NEMO_WITH_PROFILING=0
 #  - export NEMO_WITH_FAKE_GPU=0
-#  - export NEMO_WITH_MANAGED_MEMORY=0
+#  - export NEMO_WITH_MANAGED_MEMORY=0                       # GPU: since PSyclone processing is a default option, managead 
+#                                                            # memory is assumed, this must be set to 1
 #  - export DNB_SANDBOX_SUBDIR=nemo.cpu
 #  OPTIONAL: - export PSYCLONE__DIRECTIVES="omp_threading"   # CPU: omp_threading
 #                                                            # GPU: omp_offloading | omp_offloading+omp_threading | acc_offloading | acc_offloading+omp_threading
 #                                                            # GPU: default: acc_offloading 
 #  OPTIONAL: - export NEMO_OMIT_PSYCLONE=TRUE                # for GPU build, PSyclone integration is a default option, this option switches it off                 
 #
+  - export NEMO_NETCDF_C_PATH="/path/to/netcdf/c/"
+  - export NEMO_NETCDF_FORTRAN_PATH="/path/to/netcdf/fortran/"
+psubmit:
+  injob_init_commands: "export LD_LIBRARY_PATH=lib:/path/to/netcdf/lib:/path/to/hdf5/c/lib:$LD_LIBRARY_PATH"
 

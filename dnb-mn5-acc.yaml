@@ -10,7 +10,6 @@ environment:
   - export NEMO_USE_PREBUILT_HDF5=TRUE
   - export NEMO_USE_PREBUILT_NETCDF_C=TRUE
   - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=TRUE
-  - export NEMO_USE_PREBUILT_XIOS=TRUE
   - export NEMO_HDF5_PATH="/apps/ACC/HDF5/1.14.1-2/NVIDIA/NVHPCX"
   - export NEMO_NETCDF_C_PATH=${NEMO_NETCDF_C_PATH:="/gpfs/projects/.../netcdf-c-4.4.0-nvhpc"}
   - export NEMO_NETCDF_FORTRAN_PATH=${NEMO_NETCDF_FORTRAN_PATH:="/gpfs/projects/.../netcdf-fortran-4.4.3-nvhpc"}
@@ -48,7 +47,7 @@ per-package:
       set +u
       # Switch on a hack that tweaks makenemo to use an alternative makefile internally
       # NOTE: this is necessary because fcm-based makenemo can't do parallel builds on LUMI
-      export NEMO_USE_MAKE=${NEMO_USE_MAKE:-"TRUE"}
+      export NEMO_USE_MAKE=${NEMO_USE_MAKE:-"FALSE"}
       export NEMO_MAKE_PARALLEL_LEVEL=$DNB_MAKE_PARALLEL_LEVEL
 
       export NEMO_CPP="cpp"
