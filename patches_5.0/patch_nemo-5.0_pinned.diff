@@ -1,0 +1,18 @@
+diff -ruBbw nemo-5.0.src/src/OCE/LBC/lbclnk.F90 ../nemo-upd-5.0.src/src/OCE/LBC/lbclnk.F90
+--- nemo-5.0.src/src/OCE/LBC/lbclnk.F90	2024-12-19 16:34:59.000000000 +0100
++++ ../nemo-upd-5.0.src/src/OCE/LBC/lbclnk.F90	2025-09-17 11:53:14.351700000 +0200
+@@ -46,8 +46,14 @@
+ 
+    PUBLIC   lbc_lnk            ! ocean/ice lateral boundary conditions
+ 
++#ifdef key_nvidia_gpu
++   REAL(dp), DIMENSION(:), ALLOCATABLE, PINNED ::   buffsnd_dp, buffrcv_dp         ! MPI send/recv buffers
++   REAL(sp), DIMENSION(:), ALLOCATABLE, PINNED ::   buffsnd_sp, buffrcv_sp         ! 
++#else
+    REAL(dp), DIMENSION(:), ALLOCATABLE ::   buffsnd_dp, buffrcv_dp         ! MPI send/recv buffers
+    REAL(sp), DIMENSION(:), ALLOCATABLE ::   buffsnd_sp, buffrcv_sp         ! 
++
++#endif
+    INTEGER,  DIMENSION(8)              ::   nreq_p2p = MPI_REQUEST_NULL    ! request id for MPI_Isend in point-2-point communication
+    INTEGER                             ::   nreq_nei = MPI_REQUEST_NULL    ! request id for mpi_neighbor_ialltoallv
+    !! * Substitutions

@@ -75,8 +75,10 @@ per-package:
           fi
           export NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_gpu"
           export NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_nvidia_gpu"
-          export NEMO_FCFLAGS="$NEMO_FCFLAGS -acc=gpu -mp=gpu -Minfo=mp,accel -gpu=cc90"
-          export NEMO_LDFLAGS="$NEMO_LDFLAGS -acc=gpu -mp=gpu -Minfo=mp,accel -gpu=cc90 -L$DNB_CUDA_EXT_PATH -lcudart"
+          extragpu="-acc=gpu -mp=gpu -cuda"
+          is_set_to_true NEMO_WITH_OPENMP_TARGET && extragpu="-mp=gpu"
+          export NEMO_FCFLAGS="$NEMO_FCFLAGS $extragpu -Minfo=mp,accel -gpu=cc90"
+          export NEMO_LDFLAGS="$NEMO_LDFLAGS $extragpu -Minfo=mp,accel -gpu=cc90 -L$DNB_CUDA_EXT_PATH -lcudart"
           if is_set_to_true NEMO_WITH_PROFILING; then
               export NEMO_LDFLAGS="$NEMO_LDFLAGS -lnvToolsExt"
               NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_prof_gpu"
