@@ -40,7 +40,7 @@ per-binary:
            branch="master"; gpu=0; fake=0; prof=0; repro=0;
     run: |
          true
- 
+
   nemo.cpu.opt.noopenmp:
     build: |
            branch="master"; gpu=0; fake=0; prof=0; repro=0

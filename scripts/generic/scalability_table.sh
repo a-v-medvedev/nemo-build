@@ -130,8 +130,10 @@ submit() {
 
   [ -z "$optlist" ] && echo "submit: ${optnn} ${optnp} ${optnt} binconf=\"$binconf\""
   [ -z "$optlist" ] || echo "submit: optlist=$optlist binconf=\"$binconf\""
+  [ -z "$args" ] || optargs="-a \"$args\""
 
-  local cmd="psubmit.sh $optnn $optnp $optnt $optlist $optopts -a \"$args\" -u \"$binconf\""
+  local cmd="psubmit.sh $optnn $optnp $optnt $optlist $optopts $optargs -u \"$binconf\""
+  cmd=$(echo $cmd | sed 's/  */ /g')
   echo ">> $cmd"
   eval "$cmd" >> $out 2>&1
 }
@@ -299,6 +301,7 @@ report-print() {
   if [ $(nfiles_by_mask "table.*.avg") != 0 ]; then
     local list=$(echo table.*.avg | sed 's/table\.//g;s/\.avg//g')
     { echo "$header:" $list; echo "---"; paste table.*.avg; echo "---"; } >> ../scaling_report.txt
+    for i in table.*.avg; do cp $i ../nn_$nn.$i; done 
     rm table.*.*
   else
     echo "WARNING: no data for $header"
@@ -306,14 +309,32 @@ report-print() {
 }
 
 report-postproc() {
-   # Postprocess the report to a markdown table if possible:
-   if [ "$(cat scaling_report.txt | wc -l)" != 0 ]; then
-     FLDS=$(echo $ALLBINS | tr ' ' ',')
-     BASELINE=$(echo $ALLBINS | awk '{print $1}')
-     if [ "$(echo $ALLBINS | awk '{print NF}')" -gt 1 ]; then
-       cat scaling_report.txt | awk -vFLDS=$FLDS -vBASELINE=$BASELINE -f ./scalability_table_to_markdown.awk > scaling_report.md
-     fi
-   fi
+  # Postprocess the report to a markdown table if possible:
+  [ "$(cat scaling_report.txt | wc -l)" == 0 ] && return
+  local FLDS=$(grep "^nn=" scaling_report.txt | head -n1 | sed "s/^.*: *//" | sed "s/  */,/g")
+  local BASELINE=$(echo $ALLBINS | awk '{print $1}')
+  if [ "$(echo $ALLBINS | awk '{print NF}')" -gt 1 ]; then
+    local SPD=$(echo $ALLBINS | awk '{print $NF}')
+    cat scaling_report.txt | awk -vFLDS=$FLDS -vBASELINE=$BASELINE -vSPD=$SPD -f ./scalability_table_to_markdown.awk > scaling_report.md
+  fi
+  if [ $(nfiles_by_mask "nn_*.table.*.avg") != 0 ]; then
+    echo -n > scaling_efficiency_report.txt
+    local NNS=$(ls -1 nn_*.table.*.avg | sed "s/\.table\..*//;s/nn_//" | sort | uniq)
+    local nns=$(echo "$NNS" | tr '\n' ',' | sed 's/,$//')
+    for fld in $(echo $FLDS | tr ',' ' '); do
+      local tables=""
+      for n in $NNS; do
+        local table=nn_${n}.table.${fld}.avg
+        [ -f "$table" ] && tables+=" $table"
+      done
+      [ $(echo "$tables" | wc -w) == 0 ] && continue
+      { echo "fld=$fld: $nns"; echo "---"; paste $tables; echo "---"; } >> scaling_efficiency_report.txt 
+    done
+    if [ $(cat "scaling_efficiency_report.txt" | wc -w) != 0 ]; then
+      cat scaling_efficiency_report.txt | awk -vNNS="$nns" -f ./scalability_efficiency_table_to_markdown.awk > scaling_efficiency_report.md
+    fi
+    rm nn_*.table.*.avg
+  fi
 }
 
 download() {
@@ -386,14 +407,14 @@ check_yaml_parser_available
 parse_yaml_config "scalability_table.yaml"
 case $1 in
   download) download;;
-  build)    build;;
+  build)   build;;
   execute)  cycle "execute" "" "" "go-to-target-dir" ""
-            wait
-            ;;
+           wait
+           ;;
   report)   echo -n > scaling_report.txt   
             cycle "report-extract" "report-average" "report-print" \
                   "go-to-target-dir" "cd .. && report-postproc";
-            ;;
+           ;;
   *)        fatal "Unknown mode: choose one of: download, build, execute, report.";;
 esac
 
