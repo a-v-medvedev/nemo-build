@@ -1,7 +1,7 @@
 ---
 environment:
   - export NEMO_CODEBASE="COMMUNITY_4.0"
-  - export DNB_PACKAGE_VERSIONS=nemo:HEAD^master
+  - export DNB_PACKAGE_VERSIONS=4.0.7
   - export NEMO_WITH_PROFILING=0
   - export NEMO_WITH_REPRODUCIBLE=1
 ##- export NEMO_WITH_EMBEDDED_PREPROC=TRUE -- optional: replace traditional makenemo preprocessing
