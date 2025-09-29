@@ -50,8 +50,11 @@ BEGIN {
     if (V[i] == 0 || baseline == 0) {
       printf " -- |"
     } else {
-      eff=100.0*(2.0-(COEF[i]*V[i]/baseline))
-      printf " " int(V[i]/DIVIDER) " (" int(eff) "%)" " |"
+      #eff=100.0*(2.0-(COEF[i]*V[i]/baseline))
+      eff=100.0*(baseline/V[i]/COEF[i])
+      effstr= " (" int(eff) "%)"
+      if (i==min_idx) effstr="   "
+      printf " " int(V[i]/DIVIDER) effstr " |"
     }
   }
   printf "\n"
