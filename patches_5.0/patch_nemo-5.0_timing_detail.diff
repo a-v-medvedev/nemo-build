@@ -1,0 +1,243 @@
+diff -ruBbw 2/nemo-5.0-d6c9fd7692b7bc054875bd8d267ab4ac53d2d83c/src/OCE/stpmlf.F90 nemo.src/src/OCE/stpmlf.F90
+--- 2/nemo-5.0-d6c9fd7692b7bc054875bd8d267ab4ac53d2d83c/src/OCE/stpmlf.F90	2024-12-19 16:34:59.000000000 +0100
++++ nemo.src/src/OCE/stpmlf.F90	2025-05-05 23:39:54.683009931 +0200
+@@ -90,6 +90,8 @@
+       !!              -8- Outputs and diagnostics
+       !!----------------------------------------------------------------------
+       INTEGER ::   ji, jj, jk, jn, jtile   ! dummy loop indice
++      LOGICAL ::   ln_timing_detail 
++      ln_timing_detail = ln_timing
+       !! ---------------------------------------------------------------------
+ #if defined key_agrif
+       IF( nstop > 0 ) RETURN   ! avoid to go further if an error was detected during previous time step (child grid)
+@@ -105,7 +107,7 @@
+ # endif
+ #endif
+       !
+-      IF( ln_timing )   CALL timing_start('stp_MLF')
++      IF( ln_timing )   CALL timing_start('stp')
+       !
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! model timestep
+@@ -161,6 +163,7 @@
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! Update external forcing (tides, open boundaries, ice shelf interaction and surface boundary condition (including sea-ice)
+       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
++      IF( ln_timing_detail )   CALL timing_start('stp_sbc')
+       IF( ln_tide    )   CALL tide_update( kstp )                     ! update tide potential
+       IF( ln_apr_dyn )   CALL sbc_apr ( kstp )                        ! atmospheric pressure (NB: call before bdy_dta which needs ssh_ib)
+       IF( ln_bdy     )   CALL bdy_dta ( kstp, Nnn )                   ! update dynamic & tracer data at open boundaries
+@@ -168,6 +171,7 @@
+                          CALL sbc     ( kstp, Nbb, Nnn )              ! Sea Boundary Condition (including sea-ice)
+ !!$      IF( ln_isf     )   CALL isf_stp ( kstp, Nnn )
+                          !clem: problem with isf and cpl: sbcfwb needs isf but isf needs fwf from sbccpl
++      IF( ln_timing_detail )   CALL timing_stop('stp_sbc')
+ 
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! Update stochastic parameters and random T/S fluctuations
+@@ -179,15 +183,20 @@
+       ! Ocean physics update
+       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+       !  THERMODYNAMICS
++      IF( ln_timing_detail )   CALL timing_start('stp_thermodyn')
+                          CALL eos_rab( ts(:,:,:,:,Nbb), rab_b, Nnn )       ! before local thermal/haline expension ratio at T-points
+                          CALL eos_rab( ts(:,:,:,:,Nnn), rab_n, Nnn )       ! now    local thermal/haline expension ratio at T-points
+                          CALL bn2    ( ts(:,:,:,:,Nbb), rab_b, rn2b, Nnn ) ! before Brunt-Vaisala frequency
+                          CALL bn2    ( ts(:,:,:,:,Nnn), rab_n, rn2, Nnn  ) ! now    Brunt-Vaisala frequency
++      IF( ln_timing_detail )   CALL timing_stop('stp_thermodyn')
+ 
+       !  VERTICAL PHYSICS
++      IF( ln_timing_detail )   CALL timing_start('stp_vertical')
+                          CALL zdf_phy( kstp, Nbb, Nnn, Nrhs )   ! vertical physics update (top/bot drag, avt, avs, avm + MLD)
++      IF( ln_timing_detail )   CALL timing_stop('stp_vertical')
+ 
+       !  LATERAL  PHYSICS
++      IF( ln_timing_detail )   CALL timing_start('stp_lateral')
+       !
+       IF( l_ldfslp ) THEN                             ! slope of lateral mixing
+          IF( ln_traldf_triad ) THEN
+@@ -200,6 +209,7 @@
+       !                                                                        ! eddy diffusivity coeff.
+       IF( l_ldftra_time .OR. l_ldfeiv_time )   CALL ldf_tra( kstp, Nbb, Nnn )  !       and/or eiv coeff.
+       IF( l_ldfdyn_time                    )   CALL ldf_dyn( kstp, Nbb )       ! eddy viscosity coeff.
++      IF( ln_timing_detail )   CALL timing_stop('stp_lateral')
+ 
+       ! BBL coefficients
+       !
+@@ -208,7 +218,7 @@
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       !  Ocean dynamics : hdiv, ssh, e3, u, v, w
+       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-
++      IF( ln_timing_detail )   CALL timing_start('stp_oceandyn')
+                          CALL ssh_nxt    ( kstp, Nbb, Nnn, ssh,  Naa )   ! after ssh (includes call to div_hor)
+       IF( .NOT.lk_linssh ) THEN
+                          CALL dom_qco_r3c( ssh(:,:,Naa), r3t(:,:,Naa), r3u(:,:,Naa), r3v(:,:,Naa)           )   ! "after" ssh/h_0 ratio at t,u,v pts
+@@ -271,6 +281,7 @@
+ 
+       IF( ln_dynspg_ts .AND. ln_zad_Aimp )  &
+          &                  CALL wAimp      ( kstp,      Nnn )                      ! Adaptive-implicit vertical advection partitioning
++      IF( ln_timing_detail )   CALL timing_stop('stp_oceandyn')
+ 
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! cool skin
+@@ -286,6 +297,7 @@
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! diagnostics and outputs
+       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
++      IF( ln_timing_detail )   CALL timing_start('stp_diag')
+       IF( ln_diacfl  )   CALL dia_cfl   ( kstp,      Nnn )      ! Courant number diagnostics
+       IF( ln_diadct  )   CALL dia_dct   ( kstp,      Nnn )      ! Transports
+ 
+@@ -307,6 +319,7 @@
+ #endif
+       IF( l_diadetide )  CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
+       IF( l_diamlr  )    CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
++      IF( ln_timing_detail )   CALL timing_stop('stp_diag')
+ 
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! Now ssh filtering
+@@ -323,7 +336,7 @@
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! Active tracers
+       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-
++      IF( ln_timing_detail )   CALL timing_start('stp_tracers')
+       IF( ln_tile )   CALL dom_tile_start         ! [tiling] TRA tiling loop (1)
+ 
+       DO jtile = 1, nijtile
+@@ -370,6 +383,7 @@
+       END DO
+       IF( ln_tile ) CALL dom_tile_stop
+       IF( ln_zdfosm .AND. lrst_oce ) CALL osm_rst( kstp, Nnn, 'WRITE' )   ! Write OSMOSIS fields and ww to restart field
++      IF( ln_timing_detail )   CALL timing_stop('stp_tracers')
+ 
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! Set boundary conditions, time filter and swap time levels
+@@ -387,6 +401,7 @@
+ !!    (ii) requires that all restart outputs of updated variables by agrif (e.g. passive tracers/tke/barotropic arrays) are done at the same
+ !!    place.
+ !!
++      IF( ln_timing_detail )   CALL timing_start('stp_nxt')
+       IF( ln_dynspg_ts ) CALL mlf_baro_corr (            Nnn, Naa, uu, vv     )   ! barotrope adjustment
+                          CALL finalize_lbc  ( kstp, Nbb     , Naa, uu, vv, ts )   ! boundary conditions
+                          CALL tra_atf_qco   ( kstp, Nbb, Nnn, Naa        , ts )   ! time filtering of "now" tracer arrays
+@@ -405,6 +420,7 @@
+       !
+       !
+       IF( l_diahsb  )    CALL dia_hsb       ( kstp, Nbb, Nnn )  ! - ML - global conservation diagnostics
++      IF( ln_timing_detail )   CALL timing_stop('stp_nxt')
+ 
+ !!gm : This does not only concern the dynamics ==>>> add a new title
+ !!gm2: why ouput restart before AGRIF update?
+@@ -468,7 +484,7 @@
+          l_1st_euler = .FALSE.
+       ENDIF
+       !
+-      IF( ln_timing )   CALL timing_stop('stp_MLF')
++      IF( ln_timing )   CALL timing_stop('stp')
+       !
+    END SUBROUTINE stp_MLF
+ 
+diff -ruBbw 2/nemo-5.0-d6c9fd7692b7bc054875bd8d267ab4ac53d2d83c/src/OCE/stprk3.F90 nemo.src/src/OCE/stprk3.F90
+--- 2/nemo-5.0-d6c9fd7692b7bc054875bd8d267ab4ac53d2d83c/src/OCE/stprk3.F90	2024-12-19 16:34:59.000000000 +0100
++++ nemo.src/src/OCE/stprk3.F90	2025-05-05 21:47:54.850983574 +0200
+@@ -64,6 +64,8 @@
+       !!----------------------------------------------------------------------
+       INTEGER ::   ji, jj, jk, jtile   ! dummy loop indice
+       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zgdept
++      LOGICAL ::   ln_timing_detail 
++      ln_timing_detail = ln_timing
+       !! ---------------------------------------------------------------------
+ #if defined key_agrif
+       IF( nstop > 0 )   RETURN   ! avoid to go further if an error was detected during previous time step (child grid)
+@@ -128,6 +130,7 @@
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! Update external forcing (tides, open boundaries, ice shelf interaction and surface boundary condition (including sea-ice)
+       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
++      IF( ln_timing_detail )   CALL timing_start('stp_sbc')
+       IF( ln_tide    )   CALL tide_update( kstp )                          ! update tide potential
+       IF( ln_apr_dyn )   CALL sbc_apr    ( kstp )                          ! atmospheric pressure (NB: call before bdy_dta which needs ssh_ib)
+       IF( ln_bdy     )   CALL bdy_dta    ( kstp, Nbb )                     ! update dynamic & tracer data at open boundaries
+@@ -135,6 +138,7 @@
+                          CALL sbc        ( kstp, Nbb, Nbb )                ! Sea Boundary Condition (including sea-ice)
+ !!$      IF( ln_isf     )   CALL isf_stp    ( kstp, Nbb )                     ! update iceshelf geometry
+                          !clem: problem with isf and cpl: sbcfwb needs isf but isf needs fwf from sbccpl
++      IF( ln_timing_detail )   CALL timing_stop('stp_sbc')
+ 
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! Update stochastic parameters and random T/S fluctuations
+@@ -148,6 +152,7 @@
+       ! Ocean physics update
+       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+       !  THERMODYNAMICS
++      IF( ln_timing_detail )   CALL timing_start('stp_thermodyn')
+ !!gm only Before is needed for bn2 and rab  (except at stage 3 for n2)
+ !!gm issue with   Nnn  used in rad(Nbb) 
+                          CALL eos_rab( ts(:,:,:,:,Nbb), rab_b, Nbb )       ! before local thermal/haline expension ratio at T-points
+@@ -155,14 +160,19 @@
+ !!gm
+                          rab_n = rab_b
+                          rn2   = rn2b
++      IF( ln_timing_detail )   CALL timing_stop('stp_thermodyn')
++
+ !!gm sh2 computed at the end of the time-step
+ !!gm       or  call zdf_phy at the end !
+       !  VERTICAL PHYSICS
++      IF( ln_timing_detail )   CALL timing_start('stp_vertical')
+ !!st                         CALL zdf_phy( kstp, Nbb, Nnn, Nrhs )   ! vertical physics update (top/bot drag, avt, avs, avm + MLD)
+                          CALL zdf_phy( kstp, Nbb, Nbb, Nrhs )   ! vertical physics update (top/bot drag, avt, avs, avm + MLD)
++      IF( ln_timing_detail )   CALL timing_stop('stp_vertical')
+ !!gm gdep
+       !  LATERAL  PHYSICS
+       !
++      IF( ln_timing_detail )   CALL timing_start('stp_lateral')
+       IF( l_ldfslp ) THEN                             ! slope of lateral mixing
+          IF( ln_traldf_triad ) THEN
+                          CALL ldf_slp_triad( kstp, Nbb, Nbb )        ! before slope for triad operator
+@@ -175,6 +185,7 @@
+       IF( l_ldftra_time .OR. l_ldfeiv_time )   CALL ldf_tra( kstp, Nbb, Nbb )  !       and/or eiv coeff.
+       IF( l_ldfeke                         )   CALL ldf_eke_eiv( kstp, Nbb )   ! GEOMETRIC param. (update of eiv coefficient)
+       IF( l_ldfdyn_time                    )   CALL ldf_dyn( kstp, Nbb )       ! eddy viscosity coeff.
++      IF( ln_timing_detail )   CALL timing_stop('stp_lateral')
+ 
+ 
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+@@ -215,6 +226,7 @@
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       ! diagnostics and outputs
+       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
++      IF( ln_timing_detail )   CALL timing_start('stp_diag')
+       
+ !==>>>  at Nbb  no more Nnn 
+      
+@@ -239,6 +251,7 @@
+       IF( l_diadetide )  CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
+       IF( l_diamlr  )    CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
+       IF( l_diahsb  )    CALL dia_hsb   ( kstp, Nbb, Nbb )      ! - ML - global conservation diagnostics
++      IF( ln_timing_detail )   CALL timing_stop('stp_diag')
+       
+ !!gm : This does not only concern the dynamics ==>>> add a new title
+ !!gm2: why ouput restart before AGRIF update?
+diff -ruBbw 2/nemo-5.0-d6c9fd7692b7bc054875bd8d267ab4ac53d2d83c/src/OCE/timing.F90 nemo.src/src/OCE/timing.F90
+--- 2/nemo-5.0-d6c9fd7692b7bc054875bd8d267ab4ac53d2d83c/src/OCE/timing.F90	2024-12-19 16:34:59.000000000 +0100
++++ nemo.src/src/OCE/timing.F90	2025-05-05 23:20:44.114170012 +0200
+@@ -72,7 +72,7 @@
+    INTEGER, PARAMETER :: jp_tmax  = 5   ! max net time (among MPI processes)
+    INTEGER, PARAMETER :: jp_tblc  = 6   ! load balance between MPI processes (max-min)
+ 
+-   INTEGER, PARAMETER :: jpmaxline = 50   ! max number of line to be printed
++   INTEGER, PARAMETER :: jpmaxline = 100   ! max number of line to be printed
+    INTEGER, PARAMETER :: nbequal   = 70   ! number of "=" sign in separation print lines
+    
+    INTEGER, DIMENSION(8)           :: nvalues
+@@ -518,7 +518,7 @@
+       cltitle2 = 'Full elapsed Time'
+       cltitle3 = 'Frequency'
+ 
+-      itot0 = MAX(LEN_TRIM(cltitle0),               12)
++      itot0 = MAX(LEN_TRIM(cltitle0),               24)
+       itot1 = MAX(LEN_TRIM(cltitle1), idgnet +idgpct+6)   ;   iblk1 = itot1 - (idgnet +idgpct+6) + 1   ! add 6 for 's ( %)'
+       itot2 = MAX(LEN_TRIM(cltitle1), idgfull+idgpct+6)   ;   iblk2 = itot2 - (idgfull+idgpct+6) + 1   ! add 6 for 's ( %)'
+       itot3 = MAX(LEN_TRIM(cltitle3),                9) 
+

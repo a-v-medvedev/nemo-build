@@ -1,0 +1,509 @@
+diff -ruBBw nemo-5.0.src.BAK/src/OCE/nemogcm.F90 nemo-5.0.src/src/OCE/nemogcm.F90
+--- nemo-5.0.src.BAK/src/OCE/nemogcm.F90	2024-12-19 16:34:59.000000000 +0100
++++ nemo-5.0.src/src/OCE/nemogcm.F90	2025-05-16 13:04:33.732537045 +0200
+@@ -107,6 +107,9 @@
+       INTEGER ::   istp   ! time step index
+       !!----------------------------------------------------------------------
+       !
++#ifdef key_prof_gpu
++      CALL timing_mute
++#endif
+       CALL timing_start( 'full code' )     ! do it as soon as possible, no need to test ln_timing (that is not yet defined)
+       CALL timing_start( 'before step' )
+       !
+@@ -178,6 +181,9 @@
+          DO WHILE( istp <= nitend .AND. nstop == 0 )
+             !
+             ncom_stp = istp
++#ifdef key_prof_gpu
++            IF (istp == 5)    CALL timing_unmute
++#endif
+             CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, 1000 )
+             !
+ #   if defined key_RK3
+@@ -186,6 +192,9 @@
+             CALL stp_MLF( istp )
+ #   endif
+             CALL timing_stop( 'step', istp )
++#ifdef key_prof_gpu
++            IF (istp == 5)    CALL timing_mute
++#endif
+             istp = istp + 1
+             !
+          END DO
+diff -ruBBw nemo-5.0.src.BAK/src/OCE/timing.F90 nemo-5.0.src/src/OCE/timing.F90
+--- nemo-5.0.src.BAK/src/OCE/timing.F90	2025-05-14 11:59:15.403913746 +0200
++++ nemo-5.0.src/src/OCE/timing.F90	2025-05-15 19:45:12.776749076 +0200
+@@ -25,11 +25,15 @@
+ #if ! defined key_mpi_off
+    USE MPI
+ #endif
++   USE ranges          ! Profiling ranges
+ 
+    IMPLICIT NONE
+    PRIVATE
+ 
+    PUBLIC   timing_start, timing_stop, timing_open      ! called in each routine to time
++#ifdef key_prof_gpu
++   PUBLIC   timing_mute, timing_unmute     ! temporarely stop collecting all timer records
++#endif
+    
+ #if ! defined key_agrif
+ 
+@@ -65,6 +69,10 @@
+    INTEGER(8) :: n8start000
+    REAL(dp)   :: secondclock
+ 
++#ifdef key_prof_gpu
++   LOGICAL :: ln_omit_profiling = .FALSE.
++#endif
++
+    INTEGER, PARAMETER :: jp_cname = 1
+    INTEGER, PARAMETER :: jp_tnet  = 2   ! local net time (of the current MPI process)
+    INTEGER, PARAMETER :: jp_tavg  = 3   ! mean net time (among MPI processes)
+@@ -146,6 +154,13 @@
+       TYPE(timer), POINTER :: s_wrk
+       INTEGER(8)           :: i8rate
+       INTEGER              :: ji
++#ifdef key_prof_gpu
++      IF (ln_omit_profiling) THEN
++         RETURN
++      END IF
++      CALL start_profiling_range(cdinfo)
++#endif
++
+       !!----------------------------------------------------------------------
+       !
+       IF( .NOT. luse(1) )   luse(1) = .TRUE.   ! switch on the timing for the entire simulation 
+@@ -222,6 +237,14 @@
+       LOGICAL    :: ll_finalize
+       !!----------------------------------------------------------------------
+       !
++
++#ifdef key_prof_gpu
++      IF (ln_omit_profiling) THEN
++         RETURN
++      END IF
++      CALL stop_profiling_range
++#endif
++
+       IF( s_timer%nrecurrent > 0 ) THEN
+          s_timer%nrecurrent = s_timer%nrecurrent - 1   ! we are timing a recurrent routine (a routine directly calling itself)
+          RETURN
+@@ -279,6 +302,17 @@
+       
+    END SUBROUTINE timing_stop
+ 
++#ifdef key_prof_gpu 
++   SUBROUTINE timing_mute
++       ln_omit_profiling = .true.
++       call stop_profiling
++   END SUBROUTINE timing_mute
++
++   SUBROUTINE timing_unmute
++       ln_omit_profiling = .false.
++       call start_profiling
++   END SUBROUTINE timing_unmute
++#endif
+ 
+    SUBROUTINE timing_finalize( sd_root )
+       !!----------------------------------------------------------------------
+--- nemo-5.0.src.BAK/src/OCE/GPU/gpu_macros.h90	2025-05-15 19:11:22.951508000 +0200
++++ nemo-5.0.src/src/OCE/GPU/gpu_macros.h90	2025-05-15 19:45:12.777319651 +0200
+@@ -0,0 +1,94 @@
++#ifdef key_fake_gpu
++
++#define ongpu !! 
++#define onamd !!
++#define onnvd !!
++#define oncpu 
++#define ongpu_inline(func)  !!
++#define gpu_mem_registration_begin !!
++#define gpu_mem_register(VAR, ELEM) !!
++#define gpu_mem_registration_end   !!
++#define PERM213(i,j,k) i,j,k
++#define _T(x) x
++
++!! not key_fake_gpu (normal mode):
++#else 
++
++#if defined key_gpu
++#define PERM213(i,j,k) j,i,k
++#define _T(x) t/**/x
++#define ongpu
++#define oncpu !!
++#if defined key_amd_gpu
++#define onamd
++#define onnvd !!
++#define ongpu_inline(func)  !$acc routine seq
++#elif defined key_nvidia_gpu
++#define onamd !!
++#define onnvd
++#define ongpu_inline(func)  !$acc routine seq
++#else
++#define ongpu_inline(func)  !$acc routine seq
++#endif
++#else
++#define PERM213(i,j,k) i,j,k
++#define _T(x) x
++#define oncpu
++#define ongpu !!
++#define onamd !!
++#define onnvd !!
++#define ongpu_inline(func)  !!
++#endif
++
++#if defined key_gpu
++
++#define gpu_mem_registration_begin if (.not. LN_MEM_REGISTERED) then
++#define gpu_mem_registration_end LN_MEM_REGISTERED = .true.; endif
++
++
++#if defined key_amd_gpu
++#define gpu_mem_register(VAR, ELEM) call mem_register(VAR, C_SIZEOF(ELEM));
++#elif defined key_nvidia_gpu
++#define gpu_mem_register(VAR, ELEM) call mem_register(VAR, SIZEOF(ELEM));
++#endif
++
++
++/* NOTE: this relyes on variadic macro params that are switched off with -traditional */
++#if 0
++
++#define gpu_sizeof_dim1(VAR) SIZEOF(VAR(1))
++#define gpu_sizeof_dim2(VAR) SIZEOF(VAR(1,1))
++#define gpu_sizeof_dim3(VAR) SIZEOF(VAR(1,1,1))
++#define gpu_sizeof_dim4(VAR) SIZEOF(VAR(1,1,1,1))
++
++#define gpu_mem_register__lev1(DIM, VAR) call mem_register(VAR, gpu_sizeof_dim##DIM(VAR));
++#define gpu_mem_register__lev2(DIM, VAR1, VAR2) gpu_mem_register__lev1(DIM, VAR1) gpu_mem_register__lev1(DIM, VAR2)
++#define gpu_mem_register__lev3(DIM, VAR1, VAR2, VAR3) gpu_mem_register__lev2(DIM, VAR1, VAR2) gpu_mem_register__lev1(DIM, VAR3)
++#define gpu_mem_register__lev4(DIM, VAR1, VAR2, VAR3, VAR4) gpu_mem_register__lev3(DIM, VAR1, VAR2, VAR3) gpu_mem_register__lev1(DIM, VAR4)
++#define gpu_mem_register__lev5(DIM, VAR1, VAR2, VAR3, VAR4, VAR5) gpu_mem_register__lev4(DIM, VAR1, VAR2, VAR3, VAR4) gpu_mem_register__lev1(DIM, VAR5)
++#define gpu_mem_register__lev6(DIM, VAR1, VAR2, VAR3, VAR4, VAR5, VAR6) gpu_mem_register__lev5(DIM, VAR1, VAR2, VAR3, VAR4, VAR5) gpu_mem_register__lev1(DIM, VAR6)
++#define gpu_mem_register__lev7(DIM, VAR1, VAR2, VAR3, VAR4, VAR5, VAR6, VAR7) gpu_mem_register__lev6(DIM, VAR1, VAR2, VAR3, VAR4, VAR5, VAR6) gpu_mem_register__lev1(DIM, VAR7)
++#define gpu_mem_register__lev8(DIM, VAR1, VAR2, VAR3, VAR4, VAR5, VAR6, VAR7, VAR8) gpu_mem_register__lev7(DIM, VAR1, VAR2, VAR3, VAR4, VAR5, VAR6, VAR7) gpu_mem_register__lev1(DIM, VAR8)
++
++#define PP_NARG(...) PP_NARG_(__VA_ARGS__,PP_RSEQ_N())
++#define PP_NARG_(...) PP_ARG_N(__VA_ARGS__)
++#define PP_ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, N, ...) N
++#define PP_RSEQ_N() 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
++#define PP_JOIN(part1, part2) part1##part2
++
++#define gpu_mem_register__(DIM, LEVEL, ...)  PP_JOIN(gpu_mem_register__lev, LEVEL)(DIM, __VA_ARGS__)
++#define gpu_mem_register(DIM, ...) gpu_mem_register__(DIM, PP_NARG(__VA_ARGS__), __VA_ARGS__)
++#endif
++
++#else
++
++#define gpu_mem_registration_begin !!
++#define gpu_mem_register(VAR, ELEM) !!
++#define gpu_mem_registration_end   !!
++
++#endif
++
++
++!! end of key_fake_gpu:
++#endif 
++
+diff -ruBBw nemo-5.0.src.BAK/src/OCE/GPU/hipinit.F90 nemo-5.0.src/src/OCE/GPU/hipinit.F90
+--- nemo-5.0.src.BAK/src/OCE/GPU/hipinit.F90	2025-05-15 19:11:22.954581000 +0200
++++ nemo-5.0.src/src/OCE/GPU/hipinit.F90	2025-05-15 19:45:12.777744873 +0200
+@@ -0,0 +1,16 @@
++module hipinit
++#ifdef key_prof_gpu
++#ifdef key_amd_gpu
++    interface 
++      function hipInit_(flags) bind(c, name="hipInit")
++        use iso_c_binding, only: c_int
++        implicit none
++  
++        integer :: hipInit_
++        integer(c_int),value :: flags
++      end function
++    end interface
++#endif
++#endif
++end module hipinit
++ 
+diff -ruBBw nemo-5.0.src.BAK/src/OCE/GPU/nvtx.F90 nemo-5.0.src/src/OCE/GPU/nvtx.F90
+--- nemo-5.0.src.BAK/src/OCE/GPU/nvtx.F90	2025-05-15 19:11:22.958114000 +0200
++++ nemo-5.0.src/src/OCE/GPU/nvtx.F90	2025-05-15 19:45:12.778107616 +0200
+@@ -0,0 +1,108 @@
++module nvtx
++
++#ifdef key_prof_gpu
++#ifdef key_nvidia_gpu
++use iso_c_binding
++implicit none
++
++integer,private :: col(7) = [ Z'0000ff00', Z'000000ff', Z'00ffff00', Z'00ff00ff', Z'0000ffff', Z'00ff0000', Z'00ffffff']
++integer, private, parameter :: NVTX_MAX_LEN = 256
++
++type, bind(C):: nvtxEventAttributes
++  integer(C_INT16_T):: version=1
++  integer(C_INT16_T):: size=48 !
++  integer(C_INT):: category=0
++  integer(C_INT):: colorType=1 ! NVTX_COLOR_ARGB = 1
++  integer(C_INT):: color
++  integer(C_INT):: payloadType=0 ! NVTX_PAYLOAD_UNKNOWN = 0
++  integer(C_INT):: reserved0
++  integer(C_INT64_T):: payload   ! union uint,int,double
++  integer(C_INT):: messageType=1  ! NVTX_MESSAGE_TYPE_ASCII     = 1 
++  type(C_PTR):: message  ! ascii char
++end type
++
++interface nvtxMarkA
++  subroutine nvtxMarkA(name) bind(C, name="nvtxMarkA")
++  use iso_c_binding
++  character(kind=c_char) :: name(NVTX_MAX_LEN)
++  end subroutine nvtxMarkA
++end interface nvtxMarkA
++
++interface nvtxRangePush
++  ! push range with custom label and standard color
++  subroutine nvtxRangePushA(name) bind(C, name='nvtxRangePushA')
++  use iso_c_binding
++  character(kind=C_CHAR) :: name(NVTX_MAX_LEN)
++  end subroutine
++
++  ! push range with custom label and custom color
++  subroutine nvtxRangePushEx(event) bind(C, name='nvtxRangePushEx')
++  use iso_c_binding
++  import:: nvtxEventAttributes
++  type(nvtxEventAttributes):: event
++  end subroutine
++end interface
++
++interface nvtxRangePop
++  subroutine nvtxRangePop() bind(C, name='nvtxRangePop')
++  end subroutine
++end interface
++
++interface cudaProfilerStart
++  subroutine cudaProfilerStart() bind(C, name='cudaProfilerStart')
++  end subroutine
++end interface
++
++interface cudaProfilerStop
++  subroutine cudaProfilerStop() bind(C, name='cudaProfilerStop')
++  end subroutine
++end interface
++
++contains
++
++subroutine nvtxMark(name)
++  character(kind=c_char,len=*) :: name
++
++  call nvtxMarkA(formatString(name))
++end subroutine nvtxMark
++
++subroutine nvtxStartRange(name,id)
++  character(kind=c_char,len=*) :: name
++  integer, optional:: id
++  type(nvtxEventAttributes):: event
++  character(len=NVTX_MAX_LEN):: tempName
++
++  tempName = trim(name)//C_NULL_CHAR
++  if ( .not. present(id)) then
++    call nvtxRangePush(formatString(name))
++  else
++    event%color=col(mod(id,7)+1)
++    event%message=c_loc(tempName)
++    call nvtxRangePushEx(event)
++  end if
++end subroutine
++
++subroutine nvtxEndRange
++  call nvtxRangePop
++end subroutine
++
++function formatString(str)
++  character(kind=c_char,len=*) :: str
++  character :: c_str(NVTX_MAX_LEN)
++  integer:: i, str_len
++  character(kind=c_char) :: formatString(NVTX_MAX_LEN)
++
++  str_len = len(trim(str))
++  do i = 1, len(trim(str))
++     c_str(i) = str(i:i)
++  end do
++  c_str(str_len+1) = C_NULL_CHAR
++
++  formatString = c_str
++end function formatString
++
++#endif
++#endif
++
++end module nvtx
++
+diff -ruBBw nemo-5.0.src.BAK/src/OCE/GPU/ranges.F90 nemo-5.0.src/src/OCE/GPU/ranges.F90
+--- nemo-5.0.src.BAK/src/OCE/GPU/ranges.F90	2025-05-15 19:11:22.963045000 +0200
++++ nemo-5.0.src/src/OCE/GPU/ranges.F90	2025-05-15 19:45:12.778426393 +0200
+@@ -0,0 +1,85 @@
++module ranges
++    use roctx          ! ROCTX Interface
++    use hipinit        ! Hip Init Interface
++    use nvtx           ! NVTX Interface
++    use iso_c_binding, only: c_char
++    implicit none
++
++    logical :: profiling_explicitely_started = .false.
++
++    contains 
++        subroutine init_profiling()
++#if defined key_prof_gpu
++#if defined key_amd_gpu
++            integer ::   val
++            val = hipInit_(0)
++#endif
++#endif
++        end subroutine init_profiling
++
++        subroutine start_profiling()
++#if defined key_prof_gpu
++            profiling_explicitely_started = .true.
++#if defined key_amd_gpu
++            call hipProfilerStart
++#endif
++#if defined key_nvidia_gpu
++            call cudaProfilerStart
++#endif
++#endif
++        end subroutine start_profiling
++            
++
++        subroutine stop_profiling()
++#if defined key_prof_gpu
++#if defined key_amd_gpu
++            if (profiling_explicitely_started)    call hipProfilerStop
++#endif
++#if defined key_nvidia_gpu
++            if (profiling_explicitely_started)    call cudaProfilerStop
++#endif
++            profiling_explicitely_started = .false.
++#endif
++        end subroutine stop_profiling
++
++        subroutine start_profiling_range(name)
++            character(kind=c_char,len=*) :: name
++#if defined key_prof_gpu
++#if defined key_amd_gpu
++            if (profiling_explicitely_started) call roctxRangePush(name)
++#endif
++#endif
++#if defined key_prof_gpu
++#if defined key_nvidia_gpu
++            if (profiling_explicitely_started) call nvtxStartRange(name)
++#endif
++#endif
++        end subroutine start_profiling_range
++
++        subroutine stop_profiling_range()
++#if defined key_prof_gpu
++#if defined key_amd_gpu
++            if (profiling_explicitely_started) call roctxRangePop
++#endif
++#endif
++#if defined key_prof_gpu
++#if defined key_nvidia_gpu
++            if (profiling_explicitely_started) call nvtxEndRange
++#endif
++#endif
++        end subroutine stop_profiling_range
++
++        subroutine set_profiling_mark(name)
++          character(kind=c_char,len=*) :: name
++#if defined key_prof_gpu
++#if defined key_amd_gpu
++            if (profiling_explicitely_started) call roctxMark(name)
++#endif
++#if defined key_nvidia_gpu
++            if (profiling_explicitely_started) call nvtxMark(name)
++#endif
++#endif
++        end subroutine set_profiling_mark
++end module ranges
++
++
+diff -ruBBw nemo-5.0.src.BAK/src/OCE/GPU/roctx.F90 nemo-5.0.src/src/OCE/GPU/roctx.F90
+--- nemo-5.0.src.BAK/src/OCE/GPU/roctx.F90	2025-05-15 19:11:22.965907000 +0200
++++ nemo-5.0.src/src/OCE/GPU/roctx.F90	2025-05-15 19:45:12.778836786 +0200
+@@ -0,0 +1,76 @@
++module roctx
++#ifdef key_prof_gpu
++#ifdef key_amd_gpu
++    use iso_c_binding
++    implicit none
++  
++    integer, private, parameter :: ROCTX_MAX_LEN = 256
++  
++    interface roctxMarkA
++       subroutine roctxMarkA(name) bind(C, name="roctxMarkA")
++         use iso_c_binding
++         character(kind=c_char) :: name(256)
++       end subroutine roctxMarkA
++    end interface roctxMarkA
++  
++    interface roctxRangeStartA
++       subroutine roctxRangeStartA(name) bind(C, name='roctxRangeStartA')
++         use iso_c_binding
++         character(kind=c_char) :: name(256)
++       end subroutine roctxRangeStartA
++    end interface roctxRangeStartA
++  
++    interface roctxRangePushA
++       subroutine roctxRangePushA(name) bind(C, name='roctxRangePushA')
++         use iso_c_binding
++         character(kind=c_char) :: name(256)
++       end subroutine roctxRangePushA
++    end interface roctxRangePushA
++    
++    interface roctxRangePop
++       subroutine roctxRangePop() bind(C, name='roctxRangePop')
++       end subroutine roctxRangePop
++    end interface roctxRangePop
++
++    interface hipProfilerStart
++      subroutine hipProfilerStart() bind(C, name='hipProfilerStart')
++      end subroutine
++    end interface
++
++    interface hipProfilerStop
++      subroutine hipProfilerStop() bind(C, name='hipProfilerStop')
++      end subroutine
++    end interface
++
++contains
++  
++    subroutine roctxRangePush(name)
++      character(kind=c_char,len=*) :: name
++      
++      call roctxRangePushA(formatString(name))
++    end subroutine roctxRangePush
++  
++    subroutine roctxMark(name)
++      character(kind=c_char,len=*) :: name
++  
++      call roctxMarkA(formatString(name))
++    end subroutine roctxMark
++  
++    function formatString(str)
++      character(kind=c_char,len=*) :: str
++      character :: c_str(ROCTX_MAX_LEN)
++      integer:: i, str_len
++      character(kind=c_char) :: formatString(ROCTX_MAX_LEN)
++      
++      str_len = len(trim(str))    
++      do i = 1, len(trim(str))
++         c_str(i) = str(i:i)
++      end do
++      c_str(str_len+1) = C_NULL_CHAR
++  
++      formatString = c_str
++    end function formatString
++#endif
++#endif
++end module roctx
++ 
+

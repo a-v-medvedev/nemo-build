@@ -1,31 +1,37 @@
 #!/bin/bash
 
-DNB_DBSCRIPTSDIR=./dbscripts
-DNB_YAML_CONFIG="dnb.yaml"
-
-source $DNB_DBSCRIPTSDIR/includes.inc
-source $DNB_DBSCRIPTSDIR/apps-nemo.inc
+source dbscripts/includes.inc
+source dbscripts/apps-nemo.inc
 
 function dnb_sandbox() {
-    mkdir -p sandbox
+    i_mksandbox
     cd sandbox
-    cp -r ../nemo.bin/* .
 
+    for wld in $NEMO_AVAILABLE_WORKLOADS; do
+        case "$wld" in
+        ORCA2-generic)
+            [ -e "$wld/scripts" -a -e "$wld/data" ] && continue
+            [ -e "$HOME/data/$wld" ] || fatal "workload $wld is selected, but there is no directory $HOME/data/$wld"
+            ln -s $HOME/data/$wld $wld
+            ;;
+        *) fatal "Unknown workload name in NEMO_AVAILABLE_WORKLOADS" 
+            ;;
+            esac
+    done
+ 
+    cd $DNB_SANDBOX
+    cp -r $DNB_INSTALL_DIR/nemo.bin/* .
     mkdir -p lib
-    [ -e "../hdf5.bin/lib" ] && cp -a ../hdf5.bin/lib/* lib
-    [ -e "../netcdf-c.bin/lib" ] && cp -a ../netcdf-c.bin/lib/* lib
-    [ -e "../netcdf-fortran.bin/lib" ] && cp -a ../netcdf-fortran.bin/lib/* lib
-    for i in ../scripts/*.sh; do
-        rm -f $(basename $i)
-        ln -s $i .
-    done
+    [ -e "$DNB_INSTALL_DIR/hdf5.bin/lib" ] && cp -a $DNB_INSTALL_DIR/hdf5.bin/lib/* lib
+    [ -e "$DNB_INSTALL_DIR/netcdf-c.bin/lib" ] && cp -a $DNB_INSTALL_DIR/netcdf-c.bin/lib/* lib
+    [ -e "$DNB_INSTALL_DIR//netcdf-fortran.bin/lib" ] && cp -a $DNB_INSTALL_DIR/netcdf-fortran.bin/lib/* lib
+
     [ -z "$NEMO_SCRIPTS_FOLDER" ] && fatal "NEMO_SCRIPTS_FOLDER is not set"
-    for i in ../scripts/generic/$NEMO_SCRIPTS_FOLDER/*.sh; do
-        rm -f $(basename $i)
-        ln -s $i .
-    done
-    generate_psubmit_opt "."
+    DNB_MACHINE_SCRIPTS_FOLDER="$NEMO_SCRIPTS_FOLDER"
+    i_copy_scripts
+    generate_psubmit_opt
     cd $DNB_INSTALL_DIR
+    i_copy_scal_scripts
 }
 
-source "$DNB_DBSCRIPTSDIR/yaml-config.inc"
+source dbscripts/yaml-config.inc

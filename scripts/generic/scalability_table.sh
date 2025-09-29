@@ -407,14 +407,14 @@ check_yaml_parser_available
 parse_yaml_config "scalability_table.yaml"
 case $1 in
   download) download;;
-  build)   build;;
+  build)    build;;
   execute)  cycle "execute" "" "" "go-to-target-dir" ""
-           wait
-           ;;
+            wait
+            ;;
   report)   echo -n > scaling_report.txt   
             cycle "report-extract" "report-average" "report-print" \
                   "go-to-target-dir" "cd .. && report-postproc";
-           ;;
+            ;;
   *)        fatal "Unknown mode: choose one of: download, build, execute, report.";;
 esac
 

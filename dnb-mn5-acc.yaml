@@ -1,16 +1,18 @@
 ---
-checks: [ "cuda" ]
+checks: [ "cmake", "cuda" ]
 environment:
-  - module load nvidia-hpc-sdk/24.3 hdf5/1.14.1-2-nvidia-nvhpcx nvidia-hpc-sdk/24.9 cmake
+  - module load nvidia-hpc-sdk/25.1 hdf5/1.14.1-2-nvidia-nvhpcx cmake
   - export FC=mpifort
   - export CXX=g++
   - export CC=gcc
   - export NEMO_SCRIPTS_FOLDER="mn5-acc"
-  - export NEMO_AVAILABLE_WORKLOADS="ORCA2-generic"
-  - export NEMO_USE_PREBUILT_HDF5=FALSE
-  - export NEMO_USE_PREBUILT_NETCDF_C=FALSE
-  - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=FALSE
-  - export NEMO_USE_PREBUILT_XIOS=FALSE
+  - export NEMO_AVAILABLE_WORKLOADS=${NEMO_AVAILABLE_WORKLOADS:="ORCA2-generic"}
+  - export NEMO_USE_PREBUILT_HDF5=TRUE
+  - export NEMO_USE_PREBUILT_NETCDF_C=TRUE
+  - export NEMO_USE_PREBUILT_NETCDF_FORTRAN=TRUE
+  - export NEMO_HDF5_PATH="/apps/ACC/HDF5/1.14.1-2/NVIDIA/NVHPCX"
+  - export NEMO_NETCDF_C_PATH=${NEMO_NETCDF_C_PATH:="/gpfs/projects/.../netcdf-c-4.4.0-nvhpc"}
+  - export NEMO_NETCDF_FORTRAN_PATH=${NEMO_NETCDF_FORTRAN_PATH:="/gpfs/projects/.../netcdf-fortran-4.4.3-nvhpc"}
 settings:
   parallel_level: 16
   default_mode: ":bi"
@@ -20,13 +22,13 @@ psubmit:
   nth: 10
   ngpus: 4
   queue_name: ""
-  account: XXXXXX
+  account: XXXX
   time_limit: 10
-  node_type: XXXXXX
+  node_type: XXXX
   resource_handling: qos
   generic_resources: gpu:4
-  init_commands: "module load nvidia-hpc-sdk/24.3 hdf5/1.14.1-2-nvidia-nvhpcx nvidia-hpc-sdk/24.9"
-  injob_init_commands: "export LD_LIBRARY_PATH=lib:$LD_LIBRARY_PATH"
+  init_commands: "module load nvidia-hpc-sdk/25.1 hdf5/1.14.1-2-nvidia-nvhpcx"
+  injob_init_commands: "export LD_LIBRARY_PATH=lib:/apps/ACC/HDF5/1.14.1-2/NVIDIA/NVHPCX/lib:/gpfs/projects/.../netcdf-c-4.4.0-nvhpc/lib:/gpfs/projects/.../netcdf-fortran-4.4.3-nvhpc/lib:/gpfs/projects/.../xios-2.5-nvhpc/lib:$LD_LIBRARY_PATH"
   mpi_script: ompi4
   batch_script: slurm
 per-package:
@@ -43,27 +45,32 @@ per-package:
       cd $oldpwd
 
       set +u
-      if true; then
-          # Switch on a hack that tweaks makenemo to use an alternative makefile internally
-          # NOTE: this is necessary because fcm-based makenemo can't do parallel builds on LUMI
-          export NEMO_USE_MAKE=1
-          export NEMO_MAKE_PARALLEL_LEVEL=$DNB_MAKE_PARALLEL_LEVEL
-      else
-          export NEMO_MAKE_PARALLEL_LEVEL=1
-      fi
+      # Switch on a hack that tweaks makenemo to use an alternative makefile internally
+      # NOTE: this is necessary because fcm-based makenemo can't do parallel builds on LUMI
+      export NEMO_USE_MAKE=${NEMO_USE_MAKE:-"FALSE"}
+      export NEMO_MAKE_PARALLEL_LEVEL=$DNB_MAKE_PARALLEL_LEVEL
 
       export NEMO_CPP="cpp"
+      is_set_to_true NEMO_WITH_EMBEDDED_PREPROC && NEMO_CPP="$DNB_INSTALL_DIR/wrapper-cpp.sh"
       export NEMO_CC="gcc"
       export NEMO_FC="$FC"
+      module_opt=""
+      is_set_to_true NEMO_USE_MAKE && module_opt="-module mod"
       if is_set_to_true NEMO_WITH_REPRODUCIBLE; then
-          export NEMO_FCFLAGS="-O1 -i4 -r8 -fopenmp -gpu=math_uniform -Mnofma -Mnovect -module mod"
+          gpumathflag=""
+          is_set_to_true NEMO_WITH_GPU && gpumathflag="-gpu=math_uniform"
+          export NEMO_FCFLAGS="-O1 -i4 -r8 -fopenmp $gpumathflag -Mnofma -Mnovect $module_opt"
       else
-          export NEMO_FCFLAGS="-O3 -i4 -r8 -fopenmp -tp=native -module mod"
+          export NEMO_FCFLAGS="-O3 -i4 -r8 -fopenmp -tp=native $module_opt"
       fi
       export NEMO_LDFLAGS="-lstdc++ -fopenmp"
       # Note: to get the MPI includes path, run mpicc -showme
-      export NEMO_FPPFLAGS="-P -traditional -I/gpfs/apps/MN5/ACC/NVIDIA-HPC-SDK/24.9/Linux_x86_64/24.9/comm_libs/12.6/hpcx/hpcx-2.20/ompi/include"
-
+      export NEMO_INCFLAGS="-I/gpfs/apps/MN5/ACC/NVIDIA-HPC-SDK/25.1/Linux_x86_64/25.1/comm_libs/12.6/hpcx/hpcx-2.21/ompi/include"
+      is_set_to_true NEMO_WITH_EMBEDDED_PREPROC && NEMO_INCFLAGS+=" -Isrc/OCE -Isrc/OCE/SBC -Isrc/OCE/OBS -Isrc/OCE/LBC"
+      export NEMO_FPPFLAGS="-P -traditional"
+      is_set_to_true NEMO_WITH_EMBEDDED_PREPROC && NEMO_FPPFLAGS=" "
+      is_set_to_true NEMO_WITH_EMBEDDED_PREPROC || NEMO_FPPFLAGS+=" $NEMO_INCFLAGS"
+      
       if is_set_to_true NEMO_WITH_PROFILING; then
           NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_profiling"
       fi
@@ -80,19 +87,24 @@ per-package:
           export NEMO_FCFLAGS="$NEMO_FCFLAGS $extragpu -Minfo=mp,accel -gpu=cc90"
           export NEMO_LDFLAGS="$NEMO_LDFLAGS $extragpu -Minfo=mp,accel -gpu=cc90 -L$DNB_CUDA_EXT_PATH -lcudart"
           if is_set_to_true NEMO_WITH_PROFILING; then
-              export NEMO_LDFLAGS="$NEMO_LDFLAGS -lnvToolsExt"
+              nvtxlibname=$(echo $DNB_CUDA_NVTXLIBNAME | sed 's/^lib//; s/\.so$//')
+              export NEMO_LDFLAGS="$NEMO_LDFLAGS -l$nvtxlibname"
               NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_prof_gpu"
           fi
           if is_set_to_true NEMO_WITH_MANAGED_MEMORY; then
               NEMO_KEYS_TO_ADD="$NEMO_KEYS_TO_ADD key_gpu_managed"
-              export NEMO_FCFLAGS="$NEMO_FCFLAGS -gpu=managed"
-              export NEMO_LDFLAGS="$NEMO_LDFLAGS -gpu=managed"
+              export NEMO_FCFLAGS="$NEMO_FCFLAGS -gpu=mem:managed"
+              export NEMO_LDFLAGS="$NEMO_LDFLAGS -gpu=mem:managed"
           fi
-          export NEMO_CXXGEMS_CXX="nvcc -arch sm_90 -O3"
-          export NEMO_CXXGEMS_FC="${NEMO_FC} -cuda -module mod -O3"
+          export NEMO_CXXGEMS_CXX="nvcc --x cu -arch sm_90 -O3"
+          export NEMO_CXXGEMS_FC="${NEMO_FC} -cuda -O3 $module_opt"
+          is_set_to_true NEMO_WITH_EMBEDDED_PREPROC && NEMO_CXXGEMS_FC+=" -Mpreprocess $(for key in $NEMO_KEYS_TO_ADD key_iomput key_embedded_preprocessor; do echo -n "-D$key "; done)"
       else
           export NEMO_FCFLAGS="$NEMO_FCFLAGS -mp=multicore"
           export NEMO_LDFLAGS="$NEMO_LDFLAGS -mp=multicore"
+      fi
+      if is_set_to_true NEMO_WITH_EMBEDDED_PREPROC; then
+          export NEMO_FCFLAGS+=" -Mpreprocess $(for key in $NEMO_KEYS_TO_ADD key_iomput key_embedded_preprocessor; do echo -n "-D$key "; done) $NEMO_INCFLAGS"
       fi
 
   xios:
@@ -101,17 +113,24 @@ per-package:
       export XIOS_CCOMPILER="mpicxx"
       export XIOS_FCOMPILER="mpif90"
       export XIOS_LINKER="mpif90"
-      export XIOS_CFLAGS="-std=c++03 -O1 -D BOOST_DISABLE_ASSERTS"
+      case "$V" in
+        trunk) export XIOS_CFLAGS="-std=c++11 -O1 -D BOOST_DISABLE_ASSERTS";;
+        *)     export XIOS_CFLAGS="-std=c++03 -O1 -D BOOST_DISABLE_ASSERTS";;
+      esac
       export XIOS_CPP="mpicc -EP"
       export XIOS_FPP="cpp -P"
 
   netcdf-c:
     - |
       # put here any specific env. setting before netcdf-c build 
+      is_set_to_true NEMO_USE_PREBUILT_HDF5 && export DNB_NETCDF_C_HDF5_PATH=$NEMO_HDF5_PATH
+      export DNB_NETCDF_C_CC=mpicc
+      
 
   netcdf-fortran:
     - |
       # put here any specific env. setting before netcdf-fortran build
-      #
+      is_set_to_true NEMO_USE_PREBUILT_NETCDF_C && export DNB_NETCDF_FORTRAN_NETCDF_C_PATH=$NEMO_NETCDF_C_PATH
+      export DNB_NETCDF_FORTRAN_FC=mpifort
+    
 ...
-

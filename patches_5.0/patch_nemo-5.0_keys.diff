@@ -1,0 +1,23 @@
+--- ORIG/src/OCE/stpctl.F90	2024-12-19 16:34:59.000000000 +0100
++++ COPY/src/OCE/stpctl.F90	2025-05-13 15:20:35.210493426 +0200
+@@ -377,3 +377,20 @@
+ 
+    !!======================================================================
+ END MODULE stpctl
++
++#ifdef key_gpu
++#ifdef key_profiling
++#ifdef key_fake_gpu
++#ifdef key_nvidia_gpu
++#ifdef key_amd_gpu
++#ifdef key_prof_gpu
++#ifdef key_gpu_managed
++! Just a placeholder, do not remove
++#endif
++#endif
++#endif
++#endif
++#endif
++#endif
++#endif
++

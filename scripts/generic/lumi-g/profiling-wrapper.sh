@@ -84,5 +84,34 @@ case "$option" in
                            exec $*  
                        fi 
                        ;;
+    bravas)
+        echo "Profiling with BRAVAS.."
+        BRAVAS_EXEC="./bravas.src/bravas/bravas.py"
+        BRAVAS_VENV="./bravas.venv"
+
+        # Check for a non-broken symlink to the venv, then activate if possible.
+        if [ -L ${BRAVAS_VENV} ] && [ -e ${BRAVAS_VENV} ]; then
+            echo "Activating venv.."
+            source "$BRAVAS_VENV/bin/activate"
+        else
+            echo "No venv at '$BRAVAS_VENV', exiting.."
+            exit 1
+        fi
+
+        # Check if BRAVAS is installed by simply checking if it returns a version.
+        echo -e "\nPython version:"
+        python --version
+        echo -e "\nBRAVAS version:"
+        python "$BRAVAS_EXEC" --version
+        exit_code="$?"
+        if [ "$exit_code" -ne 0 ]; then
+            echo "FATAL: The BRAVAS version test exitted with non-zero code: $exit_code."
+            exit $exit_code
+        fi
+
+        # Profile binary with BRAVAS as specified in the config file.
+        BRAVAS_CONFIG="bravas_config.yaml"
+        exec python ${BRAVAS_EXEC} --log=INFO profile ${BRAVAS_CONFIG}
+        ;;
     *) echo "FATAL: PROFILE variable: unknown option"
 esac

@@ -31,8 +31,9 @@ If you cloned the repository without --recursive option, get the sub-modules aft
 git submodule update --init
 ```
 
-## How to use
+## Basic setup
 
+You have to make one symlink before you start using the build system: the `machine.yaml` symlink must point to ine of `dnb-*.sh` files, that is the way to choose the machine-dependent confuguration. It is recommended also to make a custom `overrides.yaml` file based on the contents of `overrides_example.yaml`
 
 ### >> machine symlink
 
@@ -48,27 +49,6 @@ The optional `overrides.yaml` can be created to specify some build options and/o
 
 It is recommended always to use the `DNB_SANDBOX_SUBDIR` variable to set a particular subdirectory name for each build type. For example, it is handy to have `nemo.gpu` and `nemo.cpu` subdirectories to sort out the GPU-enables build from CPU-only. This adds more structure to the work at runtime.
 
-### >> account file
-
-Create the obligatory `account.yaml` file with a structure similar to:
-
-```yaml
----
-# MN5-ACC:
-psubmit:
-  queue_name: ""
-  account: XXXX
-  node_type: XXXXXX
-
-# LUMI-G:
-#psubmit:
-#  queue_name: "XXX"
-#  account: project_465000XXX
-...
-```
-
-Correct fields in the `account.yaml` allow one to select desirable account, queues and partitions while submitting jobs using `psubmit` utility later.
-
 ### >> download stage
 
 Run: `./dnb.sh :du` to download and unpack source code archives.
@@ -77,7 +57,12 @@ Run: `./dnb.sh :du` to download and unpack source code archives.
 
 Run: `./dnb.sh` to build everything.
 
-### >> run the benchmark
+which is an equivalent of `./dnb.sh :bi`. The later procedure will rebuild nemo from source code keeping possible source code changes, whereas `./dnb.sh nemo:ubi` wipes the changes and rebuilds the `NEMO` source code from scratch unpacking the downloaded source code archive.
+
+More info on the `dnb.sh` contents and options can be found in the `dbscripts` README (https://github.com/a-v-medvedev/dbscripts).
+
+
+### >> run the test case
 
 Execute the benchmark on a machine:
 
@@ -85,7 +70,5 @@ Execute the benchmark on a machine:
 - run: `./psubmit.sh -u SUBDIR`
 - check out the results in the `results.XXXXXX` directory, where `XXXXXX` stands for slurm job id
 
-This way of executing will run NEMO with ORCA2 input on a single node with the default parallel configuration. You may change many parameters of parallel execution (number of nodes, number of MPI ranks per node, number of OpenMP threads, and many more) using the `psubmit.sh` command line (see `https://github.com/a-v-medvedev/psubmit/blob/master/README.md`). The `psubmit.opt` containit the defaults is created automatically by `dnb.sh` based on corresponding yaml files contents.
-
-
+This way of executing will run NEMO with ORCA2 input on a single node with the default parallel configuration. You may change many parameters of parallel execution (number of nodes, number of MPI ranks per node, number of OpenMP threads, and many more) using the `psubmit.sh` command line (see `https://github.com/a-v-medvedev/psubmit/blob/master/README.md`). The `psubmit.opt` containing the defaults is created automatically by `dnb.sh` based on corresponding yaml files contents. The `psubmit.opt` contents is generated based on the settings from `dnb.yaml`, `machine.yaml` and `overrides.yaml` files.
 

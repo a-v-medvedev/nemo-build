@@ -1,0 +1,29 @@
+--- ORIG/sct_psyclone.sh__orig	2025-06-12 14:36:01.940925000 +0200
++++ COPY/mk/sct_psyclone.sh	2025-06-12 14:38:28.118974028 +0200
+@@ -36,6 +36,26 @@
+ #    but explicitly disable the processing of files that PSyclone version 2.5.0
+ #    would fail to process or not correctly reproduce in the PSyclone
+ #    passthrough,
++
++
++case "${FILENAME}" in
++ice*.f90) ACTION='EXCLUDE';; # Preventively exclude all the Sea Ice source files
++esac
++[[ "${FILENAME}" == "nvtx.f90"              ]] && ACTION='EXCLUDE'  # Service interface files
++[[ "${FILENAME}" == "roctx.f90"             ]] && ACTION='EXCLUDE'  # Service interface files
++[[ "${FILENAME}" == "hipinit.f90"           ]] && ACTION='EXCLUDE'  # Service interface files
++[[ "${FILENAME}" == "ranges.f90"            ]] && ACTION='EXCLUDE'  # Service interface files
++#[[ "${FILENAME}" == "icedyn_rdgrft.f90"     ]] && ACTION='EXCLUDE'  # Accelerator Fatal Error: call to cuStreamSynchronize returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS): Illegal address during kernel execution  Function: ice_dyn_rdgrft:116 Line: 183
++#[[ "${FILENAME}" == "icedyn_adv.f90"        ]] && ACTION='EXCLUDE' # (SUM(...,dim=XXX) problem)  Accelerator Fatal Error: call to cuMemcpy2DAsync returned error 1 (CUDA_ERROR_INVALID_VALUE): Invalid value  Function: ice_dyn_adv:26  Line: 51
++[[ "${FILENAME}" == "dtatsd.f90"            ]] && ACTION='EXCLUDE' # f_tsd$f49(:) lives at 0x1 size 120 partially present in host:0x43 device:0x7fe46fefba00 size:120 presentcount:1+0 line:112 name:sf_tsd$f(:) file:/home/bsc/bsc032677/src/nemo-build/nemo-5.0.src/cfgs/ORCA2/BLD_SCT_PSYCLONE/obj/dtatsd.f90 FATAL ERROR: variable in data clause is partially present on the device: name=sf_tsd$f49(:) dtatsd.f90 line 112
++[[ "${FILENAME}" == "stpctl.f90"            ]] && ACTION='EXCLUDE' # Call in OpenACC region to procedure 'pghpf_maxlocs_i8' which has no acc routine information (/home/bsc/bsc032677/src/nemo-build/nemo-5.0.src/cfgs/ORCA2/BLD_SCT_PSYCLONE/obj/stpctl.f90: 275)
++[[ "${FILENAME}" == "isfcpl.f90"            ]] && ACTION='EXCLUDE' # Compiler failed to translate accelerator region (see -Minfo messages): Could not find allocated-variable index for symbol - isfcons$d (/home/bsc/bsc032677/src/nemo-build/nemo-5.0.src/cfgs/ORCA2/BLD_SCT_PSYCLONE/obj/isfcpl.f90: 560)
++[[ "${FILENAME}" == "obs_prep.f90"          ]] && ACTION='EXCLUDE' # Call to NVHPC runtime function not supported - pghpf_instance_i8 (/home/bsc/bsc032677/src/nemo-build/nemo-5.0.src/cfgs/ORCA2/BLD_SCT_PSYCLONE/obj/obs_prep.f90: 288)
++[[ "${FILENAME}" == "fldread.f90"           ]] && ACTION='EXCLUDE'  #Internal compiler error. two references to same array have different nest       0
++#[[ "${FILENAME}" == "icedyn_adv_umx.f90"    ]] && ACTION='EXCLUDE'   # NVHPC 25.1: Compiler failed to translate accelerator region (see -Minfo messages): Unknown variable reference (/home/bsc/bsc032677/src/nemo-build/nemo-5.0.src/cfgs/ORCA2/BLD_SCT_PSYCLONE/obj/icedyn_adv_umx.f90: 574)
++[[ "${FILENAME}" == 'iom.f90'               ]] && ACTION='EXCLUDE'   # NVHPC 25.1: Call in OpenACC region to procedure 'pgf90_shape_i8' which has no acc routine information
++[[ "${FILENAME}" == 'iom_nf90.f90'          ]] && ACTION='EXCLUDE'   # NVHPC 25.1: Call in OpenACC region to procedure 'pgf90_shape_i8' which has no acc routine information
++[[ "${FILENAME}" == 'obs_fbm.f90'           ]] && ACTION='EXCLUDE'   # NVHPC 25.1: character assignments
+ [[ "${FILENAME}" == 'asminc.f90'            ]] && ACTION='EXCLUDE'   # protect 'WHERE' constructs
+ [[ "${FILENAME}" == 'icedyn_rhg_eap.f90'    ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
+ [[ "${FILENAME}" == 'p4zpoc.f90'            ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
