@@ -1,0 +1,55 @@
+diff -ruBbw iodef.xml iodef.xml
+--- iodef.xml	2025-09-12 17:28:51.226058026 +0200
++++ iodef.xml	2025-04-07 18:31:05.960849519 +0200
+@@ -9,7 +9,7 @@
+ 
+       <variable_definition>
+ 
+-          <variable id="info_level"                type="int">10</variable>
++          <variable id="info_level"                type="int">-2</variable>
+           <variable id="using_server"              type="bool">false</variable>
+           <variable id="using_oasis"               type="bool">false</variable>
+           <variable id="oasis_codes_id"            type="string" >oceanx</variable>
+diff -ruBbw namelist_cfg namelist_cfg
+--- namelist_cfg	2025-09-30 15:11:33.289474715 +0200
++++ namelist_cfg	2025-09-30 15:10:11.708912661 +0200
+@@ -20,12 +20,14 @@
+    nn_it000    =       1   !  first time step
+    nn_itend    =    5840   !  last  time step (std 5475)
+    nn_istate   =       0   !  output the initial state (1) or not (0)
++   nn_stock = -1
+ /
+ !-----------------------------------------------------------------------
+ &namdom        !   time and space domain
+ !-----------------------------------------------------------------------
+ !MLF   rn_Dt       = 5400.     !  time step for the dynamics and tracer
+-   rn_Dt       = 10800.     !  time step for the dynamics and tracer
++!RK3   rn_Dt       = 10800.     !  time step for the dynamics and tracer
++      rn_Dt       = 5400.     !  time step for the dynamics and tracer
+ /
+ !-----------------------------------------------------------------------
+ &namcfg        !   parameters of the configuration                      (default: use namusr_def in namelist_cfg)
+@@ -199,7 +201,7 @@
+ !-----------------------------------------------------------------------
+ &namberg       !   iceberg parameters                                   (default: OFF)
+ !-----------------------------------------------------------------------
+-   ln_icebergs = .true.    ! activate iceberg floats (force =F with "key_agrif")
++   ln_icebergs = .false.    ! activate iceberg floats (force =F with "key_agrif")
+ 
+    cn_dir = './'  !  root directory for the location of drag coefficient files
+    !______!___________!___________________!______________!______________!_________!___________!__________!__________!_______________!
+@@ -458,10 +460,13 @@
+ !-----------------------------------------------------------------------
+ &nammpp        !   Massively Parallel Processing
+ !-----------------------------------------------------------------------
++   nn_comm = 1
+ /
+ !-----------------------------------------------------------------------
+-&namctl        !   Control prints                                       (default: OFF)
++&namctl
+ !-----------------------------------------------------------------------
++ln_timing=.true.
++sn_cfctl%l_runstat=.true.       
+ /
+ !-----------------------------------------------------------------------
+ &namsto        ! Stochastic parametrization of EOS                      (default: OFF)
