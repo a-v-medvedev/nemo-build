@@ -20,7 +20,7 @@ function dnb_sandbox() {
     done
  
     cd $DNB_SANDBOX
-    cp -r $DNB_INSTALL_DIR/nemo.bin/* .
+    cp -r $DNB_INSTALL_DIR/nemo.bin/[^_]* .
     mkdir -p lib
     [ -e "$DNB_INSTALL_DIR/hdf5.bin/lib" ] && cp -a $DNB_INSTALL_DIR/hdf5.bin/lib/* lib
     [ -e "$DNB_INSTALL_DIR/netcdf-c.bin/lib" ] && cp -a $DNB_INSTALL_DIR/netcdf-c.bin/lib/* lib
